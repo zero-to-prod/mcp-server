@@ -6,7 +6,7 @@ echo "Version: ${APP_VERSION:-0.0.0}"
 echo "Debug Mode: ${APP_DEBUG:-false}"
 echo ""
 
-CONTROLLER_PATH="/app/Http/Controllers"
+CONTROLLER_PATH="/app/app/Http/Controllers"
 
 if [ ! -d "$CONTROLLER_PATH" ]; then
     echo "   Controller path does not exist: $CONTROLLER_PATH"
@@ -16,7 +16,7 @@ fi
 
 controller_count=$(find "$CONTROLLER_PATH" -maxdepth 1 -name "*.php" 2>/dev/null | wc -l)
 tools_count=$(grep -r "#\[McpTool" "$CONTROLLER_PATH" 2>/dev/null | wc -l)
-echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: Http/Controllers"
+echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: app/Http/Controllers"
 echo ""
 
 
