@@ -45,7 +45,7 @@ $psr17Factory = new Psr17Factory();
 
 $response = Server::builder()
     ->setServerInfo($_ENV['MCP_SERVER_NAME'] ?? 'MCP Server', $_ENV['APP_VERSION'] ?? '0.0.0')
-    ->setDiscovery(base_dir, ['app/Http/Controllers'])
+    ->setDiscovery(base_dir, ['Http/Controllers'])
     ->setSession(new FileSessionStore(mcp_sessions_dir))
     ->setLogger($logger)
     ->build()

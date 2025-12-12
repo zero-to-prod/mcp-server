@@ -34,11 +34,11 @@ Start a server with your own controllers:
 
 ```shell
 docker run -d --name mcp1 -p 8092:80 \
-  -v $(pwd):/app/app/Http/Controllers \
+  -v $(pwd):/app/Http/Controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
   -e MCP_SERVER_NAME=mcp1 \
   -e APP_DEBUG=false \
-  mcp-server:test
+  davidsmith3/mcp-server:latest
 ```
 
 Add to Claude Desktop:
@@ -54,7 +54,7 @@ For complete control, copy the entire app and mount it.
 - Copy server files to local directory
 
 ```shell
-docker run --rm -v ./mcp2:/copy mcp-server:test sh -c "cp -a /app/. /copy/"
+docker run --rm -v ./mcp2:/copy davidsmith3/mcp-server:latest sh -c "cp -a /app/. /copy/"
 ```
 
 Start with full app mount
@@ -64,7 +64,7 @@ docker run -d --name mcp2 -p 8093:80 \
   -v ./mcp2:/app \
   -v mcp2-sessions:/app/storage/mcp-sessions \
   -e MCP_SERVER_NAME=mcp2 \
-  mcp-server:test
+  davidsmith3/mcp-server:latest
 ```
 
 Add to Claude Desktop
@@ -90,7 +90,7 @@ Instance 1: Monitoring
 
 ```shell
 docker run -d --name mcp-monitoring -p 8081:80 \
-  -v ~/mcp-servers/monitoring/controllers:/app/app/Http/Controllers \
+  -v ~/mcp-servers/monitoring/controllers:/app/Http/Controllers \
   -e MCP_SERVER_NAME=monitoring \
   -e API_KEY=your_key \
   davidsmith3/mcp-server:latest
@@ -100,7 +100,7 @@ Instance 2: Weather tools
 
 ```shell
 docker run -d --name mcp-weather -p 8082:80 \
-  -v ~/mcp-servers/weather/controllers:/app/app/Http/Controllers \
+  -v ~/mcp-servers/weather/controllers:/app/Http/Controllers \
   -e MCP_SERVER_NAME=weather \
   davidsmith3/mcp-server:latest
 ```
@@ -109,7 +109,7 @@ Instance 3: Database utilities
 
 ```shell
 docker run -d --name mcp-database -p 8083:80 \
-  -v ~/mcp-servers/database/controllers:/app/app/Http/Controllers \
+  -v ~/mcp-servers/database/controllers:/app/Http/Controllers \
   -e MCP_SERVER_NAME=database \
   davidsmith3/mcp-server:latest
 ```
@@ -123,7 +123,7 @@ Each instance runs independently with different ports, controllers, names, and s
 
 ## Creating Controllers
 
-Controllers are PHP classes with MCP attributes. Place them in the directory you mount to `/app/app/Http/Controllers`.
+Controllers are PHP classes with MCP attributes. Place them in the directory you mount to `/app/Http/Controllers`.
 
 ### Controller Structure
 
@@ -253,7 +253,7 @@ Configure the MCP server using environment variables:
 
 ```shell
 docker run -d -p 8081:80 \
-  -v ./controllers:/app/app/Http/Controllers \
+  -v ./controllers:/app/Http/Controllers \
   -e MCP_SERVER_NAME=my-mcp-server \
   -e API_KEY=your_api_key_here \
   -e APP_DEBUG=true \
@@ -266,7 +266,7 @@ Mount a volume for session persistence:
 
 ```shell
 docker run -d -p 8081:80 \
-  -v ./controllers:/app/app/Http/Controllers \
+  -v ./controllers:/app/Http/Controllers \
   -v mcp-sessions:/app/storage/mcp-sessions \
   davidsmith3/mcp-server:latest
 ```
@@ -275,14 +275,14 @@ docker run -d -p 8081:80 \
 
 ### Controller Discovery
 
-- **Path**: `/app/app/Http/Controllers` (hardcoded)
-- **Mount**: Use `-v $(pwd):/app/app/Http/Controllers` to mount local controllers
+- **Path**: `/app/Http/Controllers` (hardcoded)
+- **Mount**: Use `-v $(pwd):/app/Http/Controllers` to mount local controllers
 - **Namespace**: Optional - `App\Http\Controllers` or no namespace both work
 - **Auto-loading**: All `.php` files in the controller path are automatically loaded
 
 ### README Publishing
 
-When you mount controllers to `/app/app/Http/Controllers`, the container automatically publishes this README.md to your mounted directory on first run (if it doesn't already exist). This provides local documentation.
+When you mount controllers to `/app/Http/Controllers`, the container automatically publishes this README.md to your mounted directory on first run (if it doesn't already exist). This provides local documentation.
 
 ### Container Behavior
 

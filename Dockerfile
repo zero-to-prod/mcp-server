@@ -19,9 +19,9 @@ COPY --from=build /app/vendor /app/vendor
 
 RUN mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
-             /app/app/Http/Controllers \
+             /app/Http/Controllers \
  && chown -R www-data:www-data /app/storage \
- && chown -R www-data:www-data /app/app
+ && chown -R www-data:www-data /app/Http
 
 COPY --chown=www-data:www-data . /app
 
