@@ -1,0 +1,111 @@
+# ============================================================================
+# Docker Ignore - Only Essential Files Included in Image
+# ============================================================================
+#
+# This file excludes everything except what's needed to run the MCP server.
+#
+# INCLUDED in image:
+#   - app/              (source code)
+#   - public/           (web root)
+#   - bin/              (CLI tools)
+#   - Caddyfile         (web server config)
+#   - composer.json     (dependencies)
+#   - composer.lock     (pinned versions)
+#   - entrypoint.sh     (startup script)
+#   - .env.example      (config template)
+#   - vendor/           (from build stage)
+#
+# ============================================================================
+
+# Version Control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Docker Development Files
+Dockerfile
+docker-compose.yml
+.dockerignore
+.docker/
+docker/
+
+# IDE and Editor Files
+.idea/
+.vscode/
+.devcontainer/
+.phpstorm.meta.php
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Claude Code Configuration
+.claude/
+CLAUDE.md
+
+# Documentation (not needed at runtime, except README.md which is published to mounted directories)
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+DOCKER_USAGE.md
+IMAGE_DEVELOPMENT.md
+LOCAL_DEVELOPMENT.md
+CONTROLLER_GUIDE.md
+LICENSE.md
+
+# Development Scripts (not needed in container)
+mcp-run.sh
+start-mcp*.sh
+configure.php
+
+# Testing
+tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Development Tool Configurations
+.composer-require-checker.json
+
+# Environment Files (except .env.example)
+.env
+.env.*
+!.env.example
+
+# Build Artifacts (vendor copied from build stage)
+vendor/
+node_modules/
+
+# Logs and Runtime Data
+*.log
+xdebug-profiles/
+storage/mcp-sessions/*
+storage/cache/*
+!storage/.gitkeep
+
+# Images and Media (not needed at runtime)
+art/
+*.png
+*.jpg
+*.gif
+*.svg
+# Allow images in public directory if needed
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.gif
+!public/**/*.svg
+
+# Archive and Backup Files
+.archive/
+*.bak
+*.backup
+*.old
+*.tar
+*.gz
+*.zip
+
+# Temporary Files
+tmp/
+temp/
+*.tmp

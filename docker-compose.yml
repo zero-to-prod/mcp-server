@@ -1,0 +1,68 @@
+services:
+  mcp:
+    image: ${DOCKER_IMAGE:-davidsmith3/mcp-server:latest}
+    container_name: mcp-server
+    ports:
+      - "${PORT:-8081}:80"
+    volumes:
+      - ./controllers:/app/app/Http/Controllers
+      - mcp-sessions:/app/storage/mcp-sessions
+    env_file:
+      - .env
+    environment:
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-mcp-server}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_VERSION=${APP_VERSION:-1.0.0}
+    restart: unless-stopped
+
+  dev:
+    build:
+      context: .
+      target: build
+      args:
+        VERSION: ${APP_VERSION:-0.0.0-dev}
+    container_name: mcp-server-dev
+    ports:
+      - "8085:80"
+    volumes:
+      - .:/app
+      - ./Caddyfile:/etc/frankenphp/Caddyfile:ro
+    environment:
+      - APP_DEBUG=true
+      - APP_VERSION=${APP_VERSION:-0.0.0-dev}
+      - MCP_SERVER_NAME=mcp-server-dev
+    command: frankenphp run --config /etc/frankenphp/Caddyfile
+    profiles:
+      - dev
+
+  prod:
+    build:
+      context: .
+      args:
+        VERSION: ${APP_VERSION:-1.0.0}
+    container_name: mcp-server-prod
+    ports:
+      - "8081:80"
+    volumes:
+      - ./controllers:/app/app/Http/Controllers
+      - mcp-sessions-prod:/app/storage/mcp-sessions
+    env_file:
+      - .env
+    environment:
+      - MCP_SERVER_NAME=${MCP_SERVER_NAME:-mcp-server}
+      - APP_DEBUG=${APP_DEBUG:-false}
+    restart: unless-stopped
+    profiles:
+      - prod
+
+  composer:
+    build:
+      target: build
+    volumes:
+      - .:/app
+    profiles:
+      - composer
+
+volumes:
+  mcp-sessions:
+  mcp-sessions-prod:

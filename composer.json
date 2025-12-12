@@ -1,0 +1,56 @@
+{
+    "name": "zero-to-prod/mcp-server",
+    "description": "An Extensible MCP Server",
+    "license": "MIT",
+    "type": "project",
+    "keywords": [
+        "zero-to-prod",
+        "mcp-server"
+    ],
+    "readme": "./README.md",
+    "time": "2025-12-08",
+    "authors": [
+        {
+            "name": "David Smith",
+            "email": "dave0016@gmail.com",
+            "homepage": "https://github.com/zero-to-prod",
+            "role": "maintainer"
+        }
+    ],
+    "homepage": "https://github.com/zero-to-prod/mcp-server",
+    "support": {
+        "email": "dave0016@gmail.com",
+        "issues": "https://github.com/zero-to-prod/mcp-server/issues",
+        "source": "https://github.com/zero-to-prod/mcp-server",
+        "docs": "https://zero-to-prod.github.io/mcp-server/",
+        "security": "https://github.com/zero-to-prod/mcp-server/blob/main/SECURITY.md"
+    },
+    "funding": [
+        {
+            "type": "GitHub",
+            "url": "https://github.com/sponsors/zero-to-prod"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "ext-json": "*",
+        "ext-curl": "*",
+        "psr/log": "^3.0",
+        "mcp/sdk": "^0.1.0",
+        "nyholm/psr7": "^1.8",
+        "nyholm/psr7-server": "^1.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
+}
