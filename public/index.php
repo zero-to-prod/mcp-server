@@ -43,9 +43,20 @@ if (!is_dir(mcp_sessions_dir) && !mkdir(mcp_sessions_dir, 0755, true) && !is_dir
 
 $psr17Factory = new Psr17Factory();
 
+// Load all controller files before discovery
+$controller_paths = ['app/Http/Controllers'];
+foreach ($controller_paths as $path) {
+    $full_path = base_dir . '/' . $path;
+    if (is_dir($full_path)) {
+        foreach (glob($full_path . '/*.php') as $file) {
+            require_once $file;
+        }
+    }
+}
+
 $response = Server::builder()
     ->setServerInfo($_ENV['MCP_SERVER_NAME'] ?? 'MCP Server', $_ENV['APP_VERSION'] ?? '0.0.0')
-    ->setDiscovery(base_dir, ['app/Http/Controllers'])
+    ->setDiscovery(base_dir, $controller_paths)
     ->setSession(new FileSessionStore(mcp_sessions_dir))
     ->setLogger($logger)
     ->build()
