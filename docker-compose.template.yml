@@ -1,0 +1,15 @@
+services:
+  mcp:
+    image: ${DOCKER_IMAGE:-davidsmith3/mcp-server:latest}
+    container_name: ${MCP_SERVER_NAME:-mcp-server}
+    ports:
+      - "${PORT:-8092}:80"
+    volumes:
+      - .:/app/app/Http/Controllers
+      - mcp-sessions:/app/storage/mcp-sessions
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  mcp-sessions:

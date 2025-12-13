@@ -2,57 +2,73 @@
 
 PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, expose as MCP tools.
 
-## Setup
+## Quick Start
 
-### Start server with controllers
+### 1. Initialize project directory
+
+Create template files (README.md, Example.php, .env.example):
 ```shell
-docker run -d --name mcp1 -p 8092:80 \
-  -v $(pwd):/app/app/Http/Controllers \
-  -v mcp1-sessions:/app/storage/mcp-sessions \
-  -e MCP_SERVER_NAME=mcp1 \
-  davidsmith3/mcp-server:latest
+docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
 ```
 
-### Add to Claude Desktop
-```shell
-claude mcp add --transport http mcp1 http://localhost:8092
-```
+### 2. Configure environment
 
-### Multiple instances
-Change port and mount path:
-```shell
-# Instance 1
-docker run -d --name mcp-monitoring -p 8081:80 \
-  -v ~/mcp-servers/monitoring:/app/app/Http/Controllers \
-  -e MCP_SERVER_NAME=monitoring \
-  davidsmith3/mcp-server:latest
-
-# Instance 2
-docker run -d --name mcp-weather -p 8082:80 \
-  -v ~/mcp-servers/weather:/app/app/Http/Controllers \
-  -e MCP_SERVER_NAME=weather \
-  davidsmith3/mcp-server:latest
-```
-
-### Using environment files
-
-Create `.env` from template:
 ```shell
 cp .env.example .env
-# edit .env with your values
+# Edit .env with your settings (MCP_SERVER_NAME, ports, etc.)
 ```
 
-**docker-compose** (reads `.env` automatically):
+### 3. Start server
+
+**Option A: docker-compose** (recommended)
 ```shell
-docker compose up
+docker compose up -d
 ```
 
-**docker run** (use `--env-file` flag):
+**Option B: docker run**
 ```shell
 docker run -d --name mcp1 -p 8092:80 \
   --env-file .env \
   -v $(pwd):/app/app/Http/Controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
+  davidsmith3/mcp-server:latest
+```
+
+### 4. Connect to Claude Desktop
+
+```shell
+claude mcp add --transport http mcp1 http://localhost:8092
+```
+
+## Advanced Usage
+
+### Multiple instances
+
+Each instance needs unique port and directory:
+```shell
+# Instance 1
+mkdir -p ~/mcp-servers/monitoring && cd ~/mcp-servers/monitoring
+docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
+cp .env.example .env
+# Edit .env: MCP_SERVER_NAME=monitoring, PORT=8081
+docker compose up -d
+
+# Instance 2
+mkdir -p ~/mcp-servers/weather && cd ~/mcp-servers/weather
+docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
+cp .env.example .env
+# Edit .env: MCP_SERVER_NAME=weather, PORT=8082
+docker compose up -d
+```
+
+### Manual configuration (without .env)
+
+```shell
+docker run -d --name mcp1 -p 8092:80 \
+  -v $(pwd):/app/app/Http/Controllers \
+  -v mcp1-sessions:/app/storage/mcp-sessions \
+  -e MCP_SERVER_NAME=mcp1 \
+  -e APP_DEBUG=false \
   davidsmith3/mcp-server:latest
 ```
 

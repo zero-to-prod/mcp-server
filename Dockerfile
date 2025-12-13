@@ -14,8 +14,11 @@ ENV MCP_SESSIONS_DIR="/app/storage/mcp-sessions"
 ENV APP_DEBUG="false"
 
 COPY Caddyfile /etc/frankenphp/Caddyfile
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
 
 COPY --from=build /app/vendor /app/vendor
+
+COPY composer.json composer.lock /app/
 
 RUN mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
@@ -23,10 +26,12 @@ RUN mkdir -p /app/storage/mcp-sessions \
  && chown -R www-data:www-data /app/storage \
  && chown -R www-data:www-data /app/app
 
-COPY --chown=www-data:www-data . /app
-
-# Copy entrypoint script
-COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=www-data:www-data public /app/public
+COPY --chown=www-data:www-data bin /app/bin
+COPY --chown=www-data:www-data README.md /app/
+COPY --chown=www-data:www-data Example.php /app/
+COPY --chown=www-data:www-data .env.example /app/
+COPY --chown=www-data:www-data docker-compose.template.yml /app/
 
 EXPOSE 80
 
