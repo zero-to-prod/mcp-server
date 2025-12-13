@@ -27,7 +27,6 @@ RUN mkdir -p /app/storage/mcp-sessions \
  && chown -R www-data:www-data /app/app
 
 COPY --chown=www-data:www-data public /app/public
-COPY --chown=www-data:www-data bin /app/bin
 COPY --chown=www-data:www-data README.md /app/
 COPY --chown=www-data:www-data Example.php /app/
 COPY --chown=www-data:www-data .env.example /app/
