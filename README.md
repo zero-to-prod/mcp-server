@@ -13,9 +13,10 @@ docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
 
 ### 2. Configure environment
 
+Edit .env with your settings (MCP_SERVER_NAME, ports, etc.)
+
 ```shell
 cp .env.example .env
-# Edit .env with your settings (MCP_SERVER_NAME, ports, etc.)
 ```
 
 ### 3. Start server
@@ -102,13 +103,24 @@ class ControllerName {
 ```php
 #[McpTool(
     name: 'tool_name',
-    description: 'desc',
-    annotations: new ToolAnnotations(title: 'T', readOnlyHint: true, category: 'cat'),  // optional
-    icons: [...],  // optional
-    meta: [...]    // optional
+    description: <<<TEXT
+        Multi-line description using heredoc syntax.
+        Explain what the tool does, its purpose, and any important behavior.
+        Use clear, detailed explanations for LLM understanding.
+        TEXT,
+    annotations: new ToolAnnotations(title: 'T', readOnlyHint: true)  // optional
 )]
 public function method(
-    #[Schema(type: 'TYPE', description: 'desc')]
+    #[Schema(
+        type: 'TYPE',
+        description: <<<TEXT
+            Detailed parameter description using heredoc.
+            Explain valid values, format requirements, constraints.
+            Provide examples: "example1", "example2"
+            TEXT,
+        pattern: '/regex/',      // optional validation
+        enum: ['val1', 'val2']   // optional enum constraint
+    )]
     TYPE $param
 ): RETURN_TYPE {
     if (/* error */) throw new ToolCallException('error: details');
@@ -122,11 +134,33 @@ public function method(
 
 **Example:**
 ```php
-#[McpTool(name: 'divide', description: 'divide numbers')]
+#[McpTool(
+    name: 'divide',
+    description: <<<TEXT
+        Divides two numbers and returns the result.
+        Throws exception if divisor is zero.
+        Returns floating point result for all division operations.
+        TEXT
+)]
 public function divide(
-    #[Schema(type: 'number', description: 'dividend')]
+    #[Schema(
+        type: 'number',
+        description: <<<TEXT
+            The dividend (number to be divided).
+            Can be any numeric value including negative numbers and decimals.
+            Example: 10.5, -20, 100
+            TEXT
+    )]
     float $a,
-    #[Schema(type: 'number', description: 'divisor')]
+    #[Schema(
+        type: 'number',
+        description: <<<TEXT
+            The divisor (number to divide by).
+            Must not be zero - will throw ToolCallException if zero.
+            Can be any non-zero numeric value including negative numbers and decimals.
+            Example: 2.5, -4, 0.1
+            TEXT
+    )]
     float $b
 ): float {
     if ($b === 0.0) throw new ToolCallException('cannot divide by zero');
@@ -138,14 +172,14 @@ public function divide(
 **Syntax:**
 ```php
 #[McpResource(
-    uri: 'scheme://path',           // required, RFC 3986
-    name: 'Name',                   // optional
-    description: 'desc',            // optional
-    mimeType: 'mime',               // optional
-    size: 1024,                     // optional, bytes
-    annotations: [...],             // optional
-    icons: [...],                   // optional
-    meta: [...]                     // optional
+    uri: 'scheme://path',                    // required, RFC 3986
+    name: 'Name',                            // optional
+    description: <<<TEXT
+        Resource description using heredoc.
+        Explain what data this resource provides and when to use it.
+        TEXT,
+    mimeType: 'application/json',            // optional
+    size: 1024                               // optional, bytes
 )]
 public function method(): mixed {
     if (/* error */) throw new ResourceReadException('error: details');
@@ -159,8 +193,18 @@ public function method(): mixed {
 
 **Example:**
 ```php
-#[McpResource(uri: 'config://app/settings', name: 'Settings', description: 'app config', mimeType: 'application/json')]
+#[McpResource(
+    uri: 'config://app/settings',
+    name: 'Application Settings',
+    description: <<<TEXT
+        Returns application configuration as JSON.
+        Contains runtime settings, feature flags, and environment-specific values.
+        Throws ResourceReadException if configuration file is missing.
+        TEXT,
+    mimeType: 'application/json'
+)]
 public function getSettings(): array {
+    $file = '/path/to/settings.json';
     if (!file_exists($file)) throw new ResourceReadException("not found: {$file}");
     return json_decode(file_get_contents($file), true);
 }
@@ -171,16 +215,23 @@ public function getSettings(): array {
 **Syntax:**
 ```php
 #[McpResourceTemplate(
-    uriTemplate: 'scheme://path/{var}',  // required, RFC 6570
-    name: 'Name',                        // optional
-    description: 'desc',                 // optional
-    mimeType: 'mime',                    // optional
-    annotations: [...],                  // optional
-    icons: [...],                        // optional
-    meta: [...]                          // optional
+    uriTemplate: 'scheme://path/{var}',      // required, RFC 6570
+    name: 'Name',                            // optional
+    description: <<<TEXT
+        Resource template description using heredoc.
+        Explain what data this provides and how the variable is used.
+        TEXT,
+    mimeType: 'application/json'             // optional
 )]
 public function method(
-    #[Schema(type: 'string', description: 'var desc')]
+    #[Schema(
+        type: 'string',
+        description: <<<TEXT
+            Variable parameter description.
+            Explain format, constraints, and validation rules.
+            TEXT,
+        pattern: '/^[a-z0-9]+$/'             // optional validation
+    )]
     string $var
 ): mixed {
     if (/* error */) throw new ResourceReadException('error: details');
@@ -197,9 +248,26 @@ public function method(
 
 **Example:**
 ```php
-#[McpResourceTemplate(uriTemplate: 'data://user/{userId}', name: 'User', description: 'user by id', mimeType: 'application/json')]
+#[McpResourceTemplate(
+    uriTemplate: 'data://user/{userId}',
+    name: 'User Data',
+    description: <<<TEXT
+        Returns user data by ID from the data store.
+        URI template uses {userId} variable which must be alphanumeric.
+        Throws ResourceReadException if user is not found.
+        TEXT,
+    mimeType: 'application/json'
+)]
 public function getUser(
-    #[Schema(type: 'string', description: 'user id')]
+    #[Schema(
+        type: 'string',
+        description: <<<TEXT
+            User identifier. Must be alphanumeric lowercase string.
+            Example: "user123", "abc456"
+            Validation: Only [a-z0-9] characters allowed.
+            TEXT,
+        pattern: '/^[a-z0-9]+$/'
+    )]
     string $userId
 ): array {
     if (!ctype_alnum($userId)) throw new ResourceReadException('userId must be alphanumeric');
@@ -213,13 +281,21 @@ public function getUser(
 **Syntax:**
 ```php
 #[McpPrompt(
-    name: 'name',         // required
-    description: 'desc',  // optional
-    icons: [...],         // optional
-    meta: [...]           // optional
+    name: 'name',                          // required
+    description: <<<TEXT
+        Prompt description using heredoc.
+        Explain what this prompt template is for and when to use it.
+        TEXT
 )]
 public function method(
-    #[Schema(type: 'TYPE', description: 'desc')]
+    #[Schema(
+        type: 'TYPE',
+        description: <<<TEXT
+            Parameter description for prompt.
+            Explain valid values and how they affect the generated prompt.
+            TEXT,
+        enum: ['opt1', 'opt2']             // optional
+    )]
     TYPE $param
 ): array {
     if (/* error */) throw new PromptGetException('error: details');
@@ -236,9 +312,27 @@ public function method(
 
 **Example:**
 ```php
-#[McpPrompt(name: 'review', description: 'code review prompt')]
+#[McpPrompt(
+    name: 'review',
+    description: <<<TEXT
+        Generates code review prompt with configurable style.
+        Returns structured prompt for AI to review code with specified rigor level.
+        Style affects review depth, tone, and focus areas.
+        TEXT
+)]
 public function review(
-    #[Schema(type: 'string', description: 'style')]
+    #[Schema(
+        type: 'string',
+        description: <<<TEXT
+            Review style that controls rigor and focus.
+            Valid styles:
+              - "strict": Comprehensive review with high standards, catches minor issues
+              - "balanced": Standard review focusing on significant issues (default)
+              - "lenient": Light review for quick feedback, major issues only
+            Example: "balanced"
+            TEXT,
+        enum: ['strict', 'balanced', 'lenient']
+    )]
     string $style = 'balanced'
 ): array {
     $valid = ['strict', 'balanced', 'lenient'];
@@ -252,34 +346,37 @@ public function review(
 ```php
 #[Schema(
     type: 'TYPE',                // required: string|number|integer|boolean|array|object|null
-    description: 'DESC',         // required
+    description: <<<TEXT
+        Parameter description using heredoc.
+        Explain purpose, valid values, format, constraints.
+        Provide examples and clarify edge cases.
+        TEXT,
     definition: [...],           // optional: complete JSON schema (highest priority)
 
-    // string
+    // string constraints
     minLength: 1,
     maxLength: 100,
     pattern: '/regex/',
     format: 'email',             // email|uri|date-time
 
-    // number
+    // number constraints
     minimum: 0,
     maximum: 100,
     exclusiveMinimum: 0,
     exclusiveMaximum: 100,
 
-    // array
+    // array constraints
     minItems: 1,
     maxItems: 10,
     uniqueItems: true,
 
-    // object
+    // object constraints
     properties: [...],           // property schemas
     required: ['field1'],
     patternProperties: [...],    // regex-based properties
 
-    // any
-    enum: ['opt1', 'opt2'],
-    default: 'value'
+    // enum constraint (any type)
+    enum: ['opt1', 'opt2']
 )]
 ```
 
@@ -291,19 +388,58 @@ public function review(
 
 **Examples:**
 ```php
-#[Schema(type: 'string', format: 'email', description: 'email')]
+#[Schema(
+    type: 'string',
+    format: 'email',
+    description: <<<TEXT
+        User email address. Must be valid email format.
+        Example: "user@example.com"
+        TEXT
+)]
 string $email
 
-#[Schema(type: 'integer', minimum: 1, maximum: 100, description: 'page')]
+#[Schema(
+    type: 'integer',
+    minimum: 1,
+    maximum: 100,
+    description: <<<TEXT
+        Page number for pagination. Must be between 1 and 100.
+        Default: 1
+        TEXT
+)]
 int $page
 
-#[Schema(type: 'string', enum: ['asc', 'desc'], description: 'order')]
+#[Schema(
+    type: 'string',
+    enum: ['asc', 'desc'],
+    description: <<<TEXT
+        Sort order direction.
+        Valid values: "asc" (ascending), "desc" (descending)
+        TEXT
+)]
 string $order
 
-#[Schema(type: 'array', minItems: 1, maxItems: 10, description: 'tags')]
+#[Schema(
+    type: 'array',
+    minItems: 1,
+    maxItems: 10,
+    description: <<<TEXT
+        Array of tags. Must contain 1-10 items.
+        Example: ["tag1", "tag2", "tag3"]
+        TEXT
+)]
 array $tags
 
-#[Schema(type: 'string', minLength: 5, maxLength: 50, description: 'username')]
+#[Schema(
+    type: 'string',
+    minLength: 5,
+    maxLength: 50,
+    description: <<<TEXT
+        Username. Must be 5-50 characters.
+        Only alphanumeric and underscore allowed.
+        Example: "john_doe", "user123"
+        TEXT
+)]
 string $username
 ```
 
@@ -326,9 +462,22 @@ string $param
 
 **Example:**
 ```php
-#[McpTool(name: 'search', description: 'search with filters')]
+#[McpTool(
+    name: 'search',
+    description: <<<TEXT
+        Searches items with configurable sorting.
+        Returns array of search results ordered by specified sort parameter.
+        TEXT
+)]
 public function search(
-    #[Schema(type: 'string', description: 'sort order')]
+    #[Schema(
+        type: 'string',
+        description: <<<TEXT
+            Sort order for search results.
+            Valid values: "asc" (ascending), "desc" (descending), "relevance" (by relevance score)
+            Default: "relevance"
+            TEXT
+    )]
     #[CompletionProvider(['asc', 'desc', 'relevance'])]
     string $sort = 'relevance'
 ): array {
@@ -449,15 +598,39 @@ interface SessionStoreInterface {
 declare(strict_types=1);
 namespace App\Http\Controllers;
 
-use Mcp\Capability\Attribute\{McpTool, McpResource, McpResourceTemplate, McpPrompt, Schema, CompletionProvider};
+use Mcp\Capability\Attribute\{McpTool, McpResource, McpResourceTemplate, McpPrompt, Schema};
 use Mcp\Exception\{ToolCallException, ResourceReadException, PromptGetException};
 
 class Example {
-    #[McpTool(name: 'process', description: 'process data')]
+    #[McpTool(
+        name: 'process',
+        description: <<<TEXT
+            Processes data in the specified format.
+            Validates input data and format parameter before processing.
+            Returns processed result in requested format.
+            TEXT
+    )]
     public function process(
-        #[Schema(type: 'string', minLength: 1, maxLength: 1000, description: 'data')]
+        #[Schema(
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            description: <<<TEXT
+                Input data to process. Must be non-empty string.
+                Maximum length: 1000 characters.
+                Example: "sample data to process"
+                TEXT
+        )]
         string $data,
-        #[Schema(type: 'string', enum: ['json', 'xml'], description: 'format')]
+        #[Schema(
+            type: 'string',
+            enum: ['json', 'xml'],
+            description: <<<TEXT
+                Output format for processed data.
+                Valid formats: "json", "xml"
+                Default: "json"
+                TEXT
+        )]
         string $format = 'json'
     ): array {
         if (empty($data)) throw new ToolCallException('data empty');
@@ -466,14 +639,39 @@ class Example {
         return ['result' => $this->processData($data, $format)];
     }
 
-    #[McpResource(uri: 'config://app/meta', name: 'Meta', description: 'metadata', mimeType: 'application/json')]
+    #[McpResource(
+        uri: 'config://app/meta',
+        name: 'Application Metadata',
+        description: <<<TEXT
+            Returns application metadata including version and build information.
+            Static resource with fixed URI. Always returns current version.
+            TEXT,
+        mimeType: 'application/json'
+    )]
     public function getMeta(): array {
         return ['version' => '1.0.0'];
     }
 
-    #[McpResourceTemplate(uriTemplate: 'data://item/{id}', name: 'Item', description: 'item by id', mimeType: 'application/json')]
+    #[McpResourceTemplate(
+        uriTemplate: 'data://item/{id}',
+        name: 'Item by ID',
+        description: <<<TEXT
+            Retrieves item data by identifier from data store.
+            URI template uses {id} variable for item lookup.
+            Throws ResourceReadException if item not found.
+            TEXT,
+        mimeType: 'application/json'
+    )]
     public function getItem(
-        #[Schema(type: 'string', pattern: '/^[a-z0-9]+$/', description: 'id')]
+        #[Schema(
+            type: 'string',
+            pattern: '/^[a-z0-9]+$/',
+            description: <<<TEXT
+                Item identifier. Must be alphanumeric lowercase.
+                Only [a-z0-9] characters allowed, no spaces or special chars.
+                Example: "item123", "abc456"
+                TEXT
+        )]
         string $id
     ): array {
         if (empty($id)) throw new ResourceReadException('id empty');
@@ -482,9 +680,26 @@ class Example {
         return $item;
     }
 
-    #[McpPrompt(name: 'analyze', description: 'analysis prompt')]
+    #[McpPrompt(
+        name: 'analyze',
+        description: <<<TEXT
+            Generates analysis prompt with configurable depth.
+            Returns structured prompt for AI analysis with specified thoroughness.
+            Depth parameter controls analysis scope and detail level.
+            TEXT
+    )]
     public function analyze(
-        #[Schema(type: 'string', enum: ['quick', 'deep'], description: 'depth')]
+        #[Schema(
+            type: 'string',
+            enum: ['quick', 'deep'],
+            description: <<<TEXT
+                Analysis depth level.
+                Valid values:
+                  - "quick": Fast surface-level analysis (default)
+                  - "deep": Comprehensive in-depth analysis
+                Example: "quick"
+                TEXT
+        )]
         string $depth = 'quick'
     ): array {
         $valid = ['quick', 'deep'];
