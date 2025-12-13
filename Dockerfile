@@ -20,7 +20,13 @@ COPY --from=build /app/vendor /app/vendor
 
 COPY composer.json composer.lock /app/
 
-RUN mkdir -p /app/storage/mcp-sessions \
+RUN apk add --no-cache \
+    jq \
+    grep \
+    coreutils \
+    sed \
+    gawk \
+ && mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
              /app/app/Http/Controllers \
  && chown -R www-data:www-data /app/storage \
