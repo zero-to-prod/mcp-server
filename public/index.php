@@ -7,6 +7,37 @@ require __DIR__.'/../vendor/autoload.php';
 const base_dir = __DIR__.'/..';
 const mcp_sessions_dir = __DIR__.'/../storage/mcp-sessions';
 
+set_exception_handler(static function (Throwable $exception): void {
+    error_log(
+        sprintf(
+            "[%s] [CRITICAL] Uncaught exception: %s in %s:%d\nStack trace:\n%s",
+            date('Y-m-d H:i:s'),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine(),
+            $exception->getTraceAsString()
+        )
+    );
+
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'jsonrpc' => '2.0',
+        'error' => [
+            'code' => -32603,
+            'message' => 'Internal server error',
+            'data' => ($_ENV['APP_DEBUG'] ?? 'false') === 'true' ? [
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ] : null,
+        ],
+        'id' => null,
+    ]);
+    exit(1);
+});
+
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
@@ -21,17 +52,21 @@ $logger = new class() extends AbstractLogger {
 
     public function log($level, string|Stringable $message, array $context = []): void
     {
-        if(($_ENV['APP_DEBUG'] ?? 'false') !== 'true') {
+        $is_debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+        $is_error = in_array(strtolower($level), ['error', 'critical', 'alert', 'emergency'], true);
+
+        if (!$is_error && !$is_debug) {
             return;
         }
+
         /** @noinspection ForgottenDebugOutputInspection */
         error_log(
             sprintf(
                 "[%s] [%s] %s%s",
                 date('Y-m-d H:i:s'),
-                $level,
+                strtoupper($level),
                 $message,
-                !empty($context) ? ' '.json_encode($context) : ''
+                !empty($context) ? ' '.json_encode($context, JSON_UNESCAPED_SLASHES) : ''
             )
         );
     }
@@ -43,7 +78,6 @@ if (!is_dir(mcp_sessions_dir) && !mkdir(mcp_sessions_dir, 0755, true) && !is_dir
 
 $psr17Factory = new Psr17Factory();
 
-// Load all controller files before discovery
 $controller_paths = ['app/Http/Controllers'];
 foreach ($controller_paths as $path) {
     $full_path = base_dir . '/' . $path;

@@ -325,6 +325,193 @@ This project uses the official **`mcp/sdk`** (v0.1.0) from `modelcontextprotocol
 6. **Return types**: Tool/resource methods can return primitives, arrays, or explicit content types - SDK handles conversion
 7. **Auto-loading**: All PHP files in controller paths are automatically loaded with `require_once`
 
+### Error Handling
+
+The MCP server implements comprehensive error handling using specialized exceptions that preserve error messages for clients, allowing LLMs to see errors and self-correct.
+
+#### Specialized Exception Types
+
+**1. ToolCallException** - For tool execution errors
+
+Use when tool methods encounter validation errors, business logic failures, or any user-facing errors:
+
+```php
+use Mcp\Exception\ToolCallException;
+
+#[McpTool(name: 'divide', description: 'Divides two numbers')]
+public function divide(float $a, float $b): float {
+    if ($b === 0.0) {
+        throw new ToolCallException('Division by zero is not allowed');
+    }
+    return $a / $b;
+}
+```
+
+**2. ResourceReadException** - For resource access errors
+
+Use when resource methods fail to read or access data:
+
+```php
+use Mcp\Exception\ResourceReadException;
+
+#[McpResource(uri: 'config://app/settings')]
+public function getAppSettings(): array {
+    if (!file_exists($config_file)) {
+        throw new ResourceReadException("Configuration file not found: {$config_file}");
+    }
+
+    $content = file_get_contents($config_file);
+    if ($content === false) {
+        throw new ResourceReadException("Failed to read configuration file");
+    }
+
+    return json_decode($content, true);
+}
+```
+
+**3. PromptGetException** - For prompt generation errors
+
+Use when prompt methods encounter validation or generation failures:
+
+```php
+use Mcp\Exception\PromptGetException;
+
+#[McpPrompt(name: 'code_review_prompt')]
+public function codeReviewPrompt(string $style): array {
+    $valid_styles = ['strict', 'balanced', 'lenient'];
+
+    if (!in_array($style, $valid_styles, true)) {
+        throw new PromptGetException(
+            "Invalid style: {$style}. Must be one of: " . implode(', ', $valid_styles)
+        );
+    }
+
+    return [['role' => 'user', 'content' => $prompts[$style]]];
+}
+```
+
+#### Exception Behavior
+
+- **Specialized exceptions**: Error messages are **preserved** and sent to the client in the JSON-RPC response
+  - `ToolCallException` → `CallToolResult` with `isError: true`
+  - `ResourceReadException` → JSON-RPC error response with message
+  - `PromptGetException` → JSON-RPC error response with message
+
+- **Generic exceptions**: Error messages are **hidden** - client receives a generic error message
+  - Use for internal errors that shouldn't expose implementation details
+  - Actual error is logged on the server but not exposed to clients
+
+#### Error Handling Best Practices
+
+1. **Always validate input**: Check parameters before processing
+```php
+if (empty($path)) {
+    throw new ToolCallException('File path cannot be empty');
+}
+
+if (strlen($name) > 100) {
+    throw new ToolCallException('Name is too long. Maximum length is 100 characters.');
+}
+```
+
+2. **Provide clear, actionable error messages**: Help the LLM understand what went wrong
+```php
+// Good: Specific and actionable
+throw new ToolCallException('Invalid email format: must contain @ symbol');
+
+// Bad: Vague and unhelpful
+throw new ToolCallException('Invalid input');
+```
+
+3. **Use specialized exceptions for user-facing errors**: Always use the appropriate MCP exception type
+```php
+// Good: Uses specialized exception
+if (!file_exists($path)) {
+    throw new ResourceReadException("File not found: {$path}");
+}
+
+// Bad: Generic exception hides the error from client
+if (!file_exists($path)) {
+    throw new \RuntimeException("File not found: {$path}");
+}
+```
+
+4. **Validate early, fail fast**: Check all preconditions before processing
+```php
+public function processFile(string $path): array {
+    // Validate all inputs first
+    if (empty($path)) {
+        throw new ToolCallException('File path cannot be empty');
+    }
+
+    if (str_contains($path, '..')) {
+        throw new ToolCallException('Path traversal is not allowed');
+    }
+
+    if (!file_exists($path)) {
+        throw new ToolCallException("File not found: {$path}");
+    }
+
+    // Now process the file
+    return $this->process($path);
+}
+```
+
+5. **Use generic exceptions for internal errors**: Don't expose sensitive implementation details
+```php
+try {
+    $connection = $this->connectToDatabase($credentials);
+} catch (\PDOException $e) {
+    // Log the detailed error internally
+    error_log("Database connection failed: " . $e->getMessage());
+
+    // Throw generic exception to hide credentials from client
+    throw new \RuntimeException('Database connection failed');
+}
+```
+
+#### Global Error Handling
+
+The server includes a global exception handler in `public/index.php` that:
+- Logs all uncaught exceptions with full stack traces
+- Returns proper JSON-RPC error responses
+- Exposes exception details only when `APP_DEBUG=true`
+- Ensures graceful degradation for unexpected errors
+
+#### Logging Configuration
+
+The logger is configured to:
+- Always log errors (error, critical, alert, emergency levels)
+- Log all levels when `APP_DEBUG=true`
+- Include timestamps, levels, and JSON context
+- Output to PHP's `error_log()`
+
+#### Example: Complete Error Handling Pattern
+
+```php
+#[McpTool(name: 'validate_email', description: 'Validates an email address')]
+public function validateEmail(string $email): array {
+    // Input validation
+    if (empty($email)) {
+        throw new ToolCallException('Email address cannot be empty');
+    }
+
+    if (strlen($email) > 254) {
+        throw new ToolCallException('Email address is too long (max 254 characters)');
+    }
+
+    // Format validation
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new ToolCallException("Invalid email format: {$email}");
+    }
+
+    // Success
+    return ['valid' => true, 'email' => $email];
+}
+```
+
+For comprehensive examples, see `app/Http/Controllers/ErrorHandlingExamplesController.php`.
+
 ### Docker Image Updates
 
 When modifying controllers:

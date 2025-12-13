@@ -1,298 +1,515 @@
-# mcp-server
+# MCP Server - Technical Specification
 
-[![Repo](https://img.shields.io/badge/github-gray?logo=github)](https://github.com/zero-to-prod/mcp-server)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zero-to-prod/mcp-server/test.yml?label=test)](https://github.com/zero-to-prod/mcp-server/actions)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zero-to-prod/mcp-server/backwards_compatibility.yml?label=backwards_compatibility)](https://github.com/zero-to-prod/mcp-server/actions)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/zero-to-prod/mcp-server/build_docker_image.yml?label=build_docker_image)](https://github.com/zero-to-prod/mcp-server/actions)
-[![GitHub License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/zero-to-prod/mcp-server/blob/main/LICENSE.md)
-[![Hits-of-Code](https://hitsofcode.com/github/zero-to-prod/mcp-server?branch=main)](https://hitsofcode.com/github/zero-to-prod/mcp-server/view?branch=main)
+PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, expose as MCP tools.
 
-## Contents
+## Setup
 
-- [Introduction](#introduction)
-- [Quick Start](#quick-start)
-- [Multiple Instances](#multiple-instances)
-- [Requirements](#requirements)
-- [Creating Controllers](#creating-controllers)
-- [Environment Variables](#environment-variables)
-- [Contributing](#contributing)
-
-## Introduction
-
-An Extensible MCP Server
-
-A lightweight PHP 8.4 MCP (Model Context Protocol) server packaged as a Docker image. Mount your PHP controllers and expose them as MCP tools to Claude Desktop.
-
-## Quick Start
-
-### Minimal Example (Recommended)
-
-Start a server with your own controllers:
-
-- Create your controller file locally
-- Then mount it to the container
-
+### Start server with controllers
 ```shell
 docker run -d --name mcp1 -p 8092:80 \
   -v $(pwd):/app/app/Http/Controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
   -e MCP_SERVER_NAME=mcp1 \
-  -e APP_DEBUG=false \
-  mcp-server:test
+  davidsmith3/mcp-server:latest
 ```
 
-Add to Claude Desktop:
-
+### Add to Claude Desktop
 ```shell
 claude mcp add --transport http mcp1 http://localhost:8092
 ```
 
-### Kitchen Sink (Full Development)
-
-For complete control, copy the entire app and mount it.
-
-- Copy server files to local directory
-
+### Multiple instances
+Change port and mount path:
 ```shell
-docker run --rm -v ./mcp2:/copy mcp-server:test sh -c "cp -a /app/. /copy/"
-```
-
-Start with full app mount
-
-```shell
-docker run -d --name mcp2 -p 8093:80 \
-  -v ./mcp2:/app \
-  -v mcp2-sessions:/app/storage/mcp-sessions \
-  -e MCP_SERVER_NAME=mcp2 \
-  mcp-server:test
-```
-
-Add to Claude Desktop
-
-```shell
-claude mcp add --transport http mcp2 http://localhost:8093
-```
-
-## Multiple Instances
-
-Run multiple independent MCP servers from a single Docker image by mounting different controller directories.
-
-### Architecture Benefits
-
-- **Single Image, Multiple Servers**: Build once, run many times with different configurations
-- **Isolated Sessions**: Each instance maintains separate session storage
-- **Dynamic Controllers**: Mount any PHP controllers at runtime without rebuilding
-- **Easy Scaling**: Spin up new instances by changing port and mount path
-
-### Running Multiple Instances
-
-Instance 1: Monitoring
-
-```shell
+# Instance 1
 docker run -d --name mcp-monitoring -p 8081:80 \
-  -v ~/mcp-servers/monitoring/controllers:/app/app/Http/Controllers \
+  -v ~/mcp-servers/monitoring:/app/app/Http/Controllers \
   -e MCP_SERVER_NAME=monitoring \
-  -e API_KEY=your_key \
   davidsmith3/mcp-server:latest
-```
 
-Instance 2: Weather tools
-
-```shell
+# Instance 2
 docker run -d --name mcp-weather -p 8082:80 \
-  -v ~/mcp-servers/weather/controllers:/app/app/Http/Controllers \
+  -v ~/mcp-servers/weather:/app/app/Http/Controllers \
   -e MCP_SERVER_NAME=weather \
   davidsmith3/mcp-server:latest
 ```
 
-Instance 3: Database utilities
+### Using environment files
 
+Create `.env` from template:
 ```shell
-docker run -d --name mcp-database -p 8083:80 \
-  -v ~/mcp-servers/database/controllers:/app/app/Http/Controllers \
-  -e MCP_SERVER_NAME=database \
+cp .env.example .env
+# edit .env with your values
+```
+
+**docker-compose** (reads `.env` automatically):
+```shell
+docker compose up
+```
+
+**docker run** (use `--env-file` flag):
+```shell
+docker run -d --name mcp1 -p 8092:80 \
+  --env-file .env \
+  -v $(pwd):/app/app/Http/Controllers \
+  -v mcp1-sessions:/app/storage/mcp-sessions \
   davidsmith3/mcp-server:latest
-```
-
-Each instance runs independently with different ports, controllers, names, and sessions.
-
-## Requirements
-
-- PHP 8.4 or higher
-- Docker (for containerized deployment)
-
-## Creating Controllers
-
-Controllers are PHP classes with MCP attributes. Place them in the directory you mount to `/app/app/Http/Controllers`.
-
-### Controller Structure
-
-**Namespace is optional** - controllers work with or without a namespace:
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Http\Controllers;  // Optional
-
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
-
-class MyController
-{
-    #[McpTool(
-        name: 'my_tool',
-        description: 'What this tool does'
-    )]
-    public function myTool(
-        #[Schema(type: 'string', description: 'Parameter description')]
-        string $param
-    ): array {
-        return ['result' => 'value'];
-    }
-}
-```
-
-### Available Attributes
-
-- `#[McpTool]` - Expose a method as an MCP tool
-- `#[McpResource]` - Expose static data with a URI
-- `#[McpResourceTemplate]` - Dynamic resources with URI templates
-- `#[McpPrompt]` - Template generators for AI prompts
-- `#[Schema]` - Parameter validation and descriptions
-
-### Examples
-
-**Simple Tool:**
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
-
-class Greet
-{
-    #[McpTool(description: 'Greet someone by name')]
-    public function greet(
-        #[Schema(description: 'Name to greet')]
-        string $name = 'World'
-    ): string {
-        return "Hello, {$name}!";
-    }
-}
-```
-
-**Resource:**
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Mcp\Capability\Attribute\McpResource;
-
-class Config
-{
-    #[McpResource(
-        uri: 'config://app/settings',
-        description: 'Application configuration'
-    )]
-    public function getSettings(): array {
-        return [
-            'version' => '1.0.0',
-            'environment' => 'production'
-        ];
-    }
-}
-```
-
-**Multiple Tools:**
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Attribute\Schema;
-
-class MathTools
-{
-    #[McpTool(description: 'Add two numbers')]
-    public function add(
-        #[Schema(description: 'First number')] float $a,
-        #[Schema(description: 'Second number')] float $b
-    ): float {
-        return $a + $b;
-    }
-
-    #[McpTool(description: 'Multiply two numbers')]
-    public function multiply(float $a, float $b): float {
-        return $a * $b;
-    }
-}
 ```
 
 ## Environment Variables
 
-Configure the MCP server using environment variables:
+| Variable         | Default                   | Description                    |
+|------------------|---------------------------|--------------------------------|
+| MCP_SERVER_NAME  | MCP Server                | server display name            |
+| MCP_SESSIONS_DIR | /app/storage/mcp-sessions | session storage path           |
+| APP_VERSION      | 0.0.0                     | version string                 |
+| APP_DEBUG        | false                     | enable debug logs (true/false) |
+| API_KEY          | -                         | api key for controllers        |
 
-| Variable           | Default                     | Description                                  |
-|--------------------|-----------------------------|----------------------------------------------|
-| `MCP_SERVER_NAME`  | `MCP Server`                | Display name shown in Claude Desktop         |
-| `MCP_SESSIONS_DIR` | `/app/storage/mcp-sessions` | Directory for session storage                |
-| `APP_VERSION`      | `0.0.0`                     | Application version displayed in server info |
-| `APP_DEBUG`        | `false`                     | Enable debug logging (`true` or `false`)     |
-| `API_KEY`          | -                           | API keys (controller-specific)               |
+## MCP SDK Reference
 
-### Example with Custom Configuration
+### File Structure
 
-```shell
-docker run -d -p 8081:80 \
-  -v ./controllers:/app/app/Http/Controllers \
-  -e MCP_SERVER_NAME=my-mcp-server \
-  -e API_KEY=your_api_key_here \
-  -e APP_DEBUG=true \
-  davidsmith3/mcp-server:latest
+```php
+<?php
+declare(strict_types=1);
+namespace App\Http\Controllers;  // optional
+
+class ControllerName {
+    // methods with attributes
+}
 ```
 
-### Persistent Sessions
+### 1. Tool (action/function)
 
-Mount a volume for session persistence:
-
-```shell
-docker run -d -p 8081:80 \
-  -v ./controllers:/app/app/Http/Controllers \
-  -v mcp-sessions:/app/storage/mcp-sessions \
-  davidsmith3/mcp-server:latest
+**Syntax:**
+```php
+#[McpTool(
+    name: 'tool_name',
+    description: 'desc',
+    annotations: new ToolAnnotations(title: 'T', readOnlyHint: true, category: 'cat'),  // optional
+    icons: [...],  // optional
+    meta: [...]    // optional
+)]
+public function method(
+    #[Schema(type: 'TYPE', description: 'desc')]
+    TYPE $param
+): RETURN_TYPE {
+    if (/* error */) throw new ToolCallException('error: details');
+    return $result;
+}
 ```
 
-## Key Technical Details
+**Return types:** primitives, arrays, or explicit content objects (TextContent, ImageContent, AudioContent, EmbeddedResource)
 
-### Controller Discovery
+**Schema types:** `string` `number` `integer` `boolean` `array` `object` `null`
 
-- **Path**: `/app/app/Http/Controllers` (hardcoded)
-- **Mount**: Use `-v $(pwd):/app/app/Http/Controllers` to mount local controllers
-- **Namespace**: Optional - `App\Http\Controllers` or no namespace both work
-- **Auto-loading**: All `.php` files in the controller path are automatically loaded
+**Example:**
+```php
+#[McpTool(name: 'divide', description: 'divide numbers')]
+public function divide(
+    #[Schema(type: 'number', description: 'dividend')]
+    float $a,
+    #[Schema(type: 'number', description: 'divisor')]
+    float $b
+): float {
+    if ($b === 0.0) throw new ToolCallException('cannot divide by zero');
+    return $a / $b;
+}
+```
 
-### README Publishing
+### 2. Resource (static data, fixed URI)
+**Syntax:**
+```php
+#[McpResource(
+    uri: 'scheme://path',           // required, RFC 3986
+    name: 'Name',                   // optional
+    description: 'desc',            // optional
+    mimeType: 'mime',               // optional
+    size: 1024,                     // optional, bytes
+    annotations: [...],             // optional
+    icons: [...],                   // optional
+    meta: [...]                     // optional
+)]
+public function method(): mixed {
+    if (/* error */) throw new ResourceReadException('error: details');
+    return $data;
+}
+```
 
-When you mount controllers to `/app/app/Http/Controllers`, the container automatically publishes this README.md to your mounted directory on first run (if it doesn't already exist). This provides local documentation.
+**URI schemes:** `file://` `https://` `git://` `config://` `data://` `db://` `api://` (custom)
 
-### Container Behavior
+**Return types:** primitives, arrays, Stream, SplFileInfo, TextResourceContents, BlobResourceContents, `['text' => '...']`, `['blob' => 'base64...']`
 
-On startup, the entrypoint:
-1. Validates controller path exists (creates if missing)
-2. Counts controllers and tools found
-3. Publishes README.md to mounted directory (if not present)
-4. Creates session directory (if not exists)
-5. Starts FrankenPHP server on port 80
+**Example:**
+```php
+#[McpResource(uri: 'config://app/settings', name: 'Settings', description: 'app config', mimeType: 'application/json')]
+public function getSettings(): array {
+    if (!file_exists($file)) throw new ResourceReadException("not found: {$file}");
+    return json_decode(file_get_contents($file), true);
+}
+```
 
-## Contributing
+### 3. Resource Template (dynamic data, variable URI)
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this project.
+**Syntax:**
+```php
+#[McpResourceTemplate(
+    uriTemplate: 'scheme://path/{var}',  // required, RFC 6570
+    name: 'Name',                        // optional
+    description: 'desc',                 // optional
+    mimeType: 'mime',                    // optional
+    annotations: [...],                  // optional
+    icons: [...],                        // optional
+    meta: [...]                          // optional
+)]
+public function method(
+    #[Schema(type: 'string', description: 'var desc')]
+    string $var
+): mixed {
+    if (/* error */) throw new ResourceReadException('error: details');
+    return $data;
+}
+```
+
+**Rules:**
+- URI format: RFC 6570 with `{variable}` placeholders
+- Variable names must match method parameter names exactly
+- Parameter order matters: variables passed in URI template order
+- All variables required (no optional parameters)
+- Return types: same as Resource (primitives, arrays, Stream, SplFileInfo, TextResourceContents, BlobResourceContents)
+
+**Example:**
+```php
+#[McpResourceTemplate(uriTemplate: 'data://user/{userId}', name: 'User', description: 'user by id', mimeType: 'application/json')]
+public function getUser(
+    #[Schema(type: 'string', description: 'user id')]
+    string $userId
+): array {
+    if (!ctype_alnum($userId)) throw new ResourceReadException('userId must be alphanumeric');
+    if (!$user = $this->find($userId)) throw new ResourceReadException("not found: {$userId}");
+    return $user;
+}
+```
+
+### 4. Prompt (AI template generation)
+
+**Syntax:**
+```php
+#[McpPrompt(
+    name: 'name',         // required
+    description: 'desc',  // optional
+    icons: [...],         // optional
+    meta: [...]           // optional
+)]
+public function method(
+    #[Schema(type: 'TYPE', description: 'desc')]
+    TYPE $param
+): array {
+    if (/* error */) throw new PromptGetException('error: details');
+    return [['role' => 'user', 'content' => ['type' => 'text', 'text' => 'prompt']]];
+}
+```
+
+**Return formats:**
+1. Array with role+content: `[['role' => 'user', 'content' => ['type' => 'text', 'text' => '...']]]`
+2. Associative: `['user' => 'message', 'assistant' => 'response']`
+3. PromptMessage objects with Role enums
+
+**Valid roles:** `user` (input/questions), `assistant` (responses/instructions)
+
+**Example:**
+```php
+#[McpPrompt(name: 'review', description: 'code review prompt')]
+public function review(
+    #[Schema(type: 'string', description: 'style')]
+    string $style = 'balanced'
+): array {
+    $valid = ['strict', 'balanced', 'lenient'];
+    if (!in_array($style, $valid, true)) throw new PromptGetException("invalid '{$style}': " . implode('|', $valid));
+    return [['role' => 'user', 'content' => ['type' => 'text', 'text' => "Review with {$style} style"]]];
+}
+```
+
+### 5. Schema Attributes
+
+```php
+#[Schema(
+    type: 'TYPE',                // required: string|number|integer|boolean|array|object|null
+    description: 'DESC',         // required
+    definition: [...],           // optional: complete JSON schema (highest priority)
+
+    // string
+    minLength: 1,
+    maxLength: 100,
+    pattern: '/regex/',
+    format: 'email',             // email|uri|date-time
+
+    // number
+    minimum: 0,
+    maximum: 100,
+    exclusiveMinimum: 0,
+    exclusiveMaximum: 100,
+
+    // array
+    minItems: 1,
+    maxItems: 10,
+    uniqueItems: true,
+
+    // object
+    properties: [...],           // property schemas
+    required: ['field1'],
+    patternProperties: [...],    // regex-based properties
+
+    // any
+    enum: ['opt1', 'opt2'],
+    default: 'value'
+)]
+```
+
+**Schema generation priority (highest to lowest):**
+1. `#[Schema(definition: [...])]` - complete JSON schema
+2. Parameter-level `#[Schema(...)]` attributes
+3. Method-level `#[Schema(...)]` attributes
+4. PHP type hints + docblocks
+
+**Examples:**
+```php
+#[Schema(type: 'string', format: 'email', description: 'email')]
+string $email
+
+#[Schema(type: 'integer', minimum: 1, maximum: 100, description: 'page')]
+int $page
+
+#[Schema(type: 'string', enum: ['asc', 'desc'], description: 'order')]
+string $order
+
+#[Schema(type: 'array', minItems: 1, maxItems: 10, description: 'tags')]
+array $tags
+
+#[Schema(type: 'string', minLength: 5, maxLength: 50, description: 'username')]
+string $username
+```
+
+### 6. Completion Provider (auto-completion)
+
+**Types:**
+```php
+// 1. Value lists (static strings)
+#[CompletionProvider(['opt1', 'opt2', 'opt3'])]
+string $param
+
+// 2. Enum classes (backed or unit enums)
+#[CompletionProvider(MyEnum::class)]
+string $param
+
+// 3. Custom classes (implementing ProviderInterface)
+#[CompletionProvider(CustomProvider::class)]
+string $param
+```
+
+**Example:**
+```php
+#[McpTool(name: 'search', description: 'search with filters')]
+public function search(
+    #[Schema(type: 'string', description: 'sort order')]
+    #[CompletionProvider(['asc', 'desc', 'relevance'])]
+    string $sort = 'relevance'
+): array {
+    return ['results' => []];
+}
+```
+
+### 7. Error Handling
+
+**Exceptions:**
+```php
+use Mcp\Exception\ToolCallException;       // tools
+use Mcp\Exception\ResourceReadException;   // resources
+use Mcp\Exception\PromptGetException;      // prompts
+```
+
+**Message format:** `type error: details` (lowercase, concise)
+
+**Patterns:**
+```php
+// empty
+if (empty($val)) throw new ToolCallException('param empty');
+
+// length
+if (strlen($val) > 100) throw new ToolCallException('param too long: max 100');
+
+// format
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new ToolCallException("invalid email: {$email}");
+
+// enum
+$valid = ['a', 'b', 'c'];
+if (!in_array($val, $valid, true)) throw new ToolCallException("invalid '{$val}': " . implode('|', $valid));
+
+// exists
+if (!file_exists($path)) throw new ToolCallException("not found: {$path}");
+
+// pattern
+if (!preg_match('/pattern/', $val)) throw new ToolCallException('invalid format: must match pattern');
+```
+
+**Validation order:**
+1. empty/null
+2. length/range
+3. format/pattern
+4. enum/whitelist
+5. existence
+6. business logic
+
+**Generic exceptions (internal errors only):**
+```php
+try {
+    $db->connect();
+} catch (\PDOException $e) {
+    error_log("Internal: " . $e->getMessage());
+    throw new \RuntimeException('db failed');  // no details to client
+}
+```
+
+### 8. Manual Registration (alternative to attributes)
+
+```php
+Server::builder()
+    ->addTool(callable: $callable, name: 'tool_name', description: 'desc')
+    ->addResource(callable: $callable, uri: 'scheme://path', name: 'name', description: 'desc')
+    ->addResourceTemplate(callable: $callable, uriTemplate: 'scheme://{var}', name: 'name', description: 'desc')
+    ->addPrompt(callable: $callable, name: 'prompt_name', description: 'desc')
+    ->build();
+```
+
+**Callable formats:** closures, `[ClassName::class, 'method']`, `[$object, 'method']`, `InvokableClass::class`
+
+**Rule:** Manual registrations override discovered elements with same identifier
+
+### 9. Server Builder Methods
+
+```php
+Server::builder()
+    ->setServerInfo(name: 'Name', version: '1.0', description: 'desc', icons: [...], website: 'url')
+    ->setPaginationLimit(50)                                    // max items per page (default: 50)
+    ->setInstructions('AI guidance text')                       // usage instructions for AI models
+    ->setDiscovery(basePath: __DIR__, scanDirs: ['src'], excludeDirs: ['vendor'], cache: $psr16)
+    ->setSession(store: $sessionStore, ttl: 3600)              // or just ttl for InMemorySessionStore
+    ->setLogger($psr3Logger)                                    // PSR-3 logger
+    ->setContainer($psr11Container)                             // PSR-11 DI container
+    ->setEventDispatcher($psr14Dispatcher)                      // PSR-14 event dispatcher
+    ->addRequestHandler('method_name', callable)                // custom JSON-RPC handler
+    ->addNotificationHandler('notification_name', callable)     // custom notification handler
+    ->build()
+    ->run($transport);
+```
+
+### 10. Session Stores
+
+```php
+// 1. InMemorySessionStore (default, volatile)
+new InMemorySessionStore(ttl: 3600, prefix: 'session_')
+
+// 2. FileSessionStore (persistent)
+new FileSessionStore(path: '/path/to/sessions')
+
+// 3. Psr16StoreSession (Redis, Memcached, etc.)
+new Psr16StoreSession(cache: $psr16Cache, ttl: 3600, prefix: 'mcp_')
+
+// Custom: implement SessionStoreInterface
+interface SessionStoreInterface {
+    public function exists(string $id): bool;
+    public function read(string $id): ?array;
+    public function write(string $id, array $data): void;
+    public function destroy(string $id): void;
+    public function gc(int $maxlifetime): void;
+}
+```
+
+### 11. Complete Example
+
+```php
+<?php
+declare(strict_types=1);
+namespace App\Http\Controllers;
+
+use Mcp\Capability\Attribute\{McpTool, McpResource, McpResourceTemplate, McpPrompt, Schema, CompletionProvider};
+use Mcp\Exception\{ToolCallException, ResourceReadException, PromptGetException};
+
+class Example {
+    #[McpTool(name: 'process', description: 'process data')]
+    public function process(
+        #[Schema(type: 'string', minLength: 1, maxLength: 1000, description: 'data')]
+        string $data,
+        #[Schema(type: 'string', enum: ['json', 'xml'], description: 'format')]
+        string $format = 'json'
+    ): array {
+        if (empty($data)) throw new ToolCallException('data empty');
+        $valid = ['json', 'xml'];
+        if (!in_array($format, $valid, true)) throw new ToolCallException("invalid format '{$format}': " . implode('|', $valid));
+        return ['result' => $this->processData($data, $format)];
+    }
+
+    #[McpResource(uri: 'config://app/meta', name: 'Meta', description: 'metadata', mimeType: 'application/json')]
+    public function getMeta(): array {
+        return ['version' => '1.0.0'];
+    }
+
+    #[McpResourceTemplate(uriTemplate: 'data://item/{id}', name: 'Item', description: 'item by id', mimeType: 'application/json')]
+    public function getItem(
+        #[Schema(type: 'string', pattern: '/^[a-z0-9]+$/', description: 'id')]
+        string $id
+    ): array {
+        if (empty($id)) throw new ResourceReadException('id empty');
+        if (!preg_match('/^[a-z0-9]+$/', $id)) throw new ResourceReadException('id must be alphanumeric lowercase');
+        if (!$item = $this->find($id)) throw new ResourceReadException("not found: {$id}");
+        return $item;
+    }
+
+    #[McpPrompt(name: 'analyze', description: 'analysis prompt')]
+    public function analyze(
+        #[Schema(type: 'string', enum: ['quick', 'deep'], description: 'depth')]
+        string $depth = 'quick'
+    ): array {
+        $valid = ['quick', 'deep'];
+        if (!in_array($depth, $valid, true)) throw new PromptGetException("invalid '{$depth}': " . implode('|', $valid));
+        return [['role' => 'user', 'content' => ['type' => 'text', 'text' => "Analyze with {$depth} depth"]]];
+    }
+
+    private function processData(string $data, string $format): mixed { return null; }
+    private function find(string $id): ?array { return null; }
+}
+```
+
+## Error Message Patterns
+
+| Condition | Format                        | Example                       |
+|-----------|-------------------------------|-------------------------------|
+| Empty     | `param empty`                 | `email empty`                 |
+| Too long  | `param too long: max N`       | `name too long: max 100`      |
+| Format    | `invalid TYPE: VALUE`         | `invalid email: test@`        |
+| Enum      | `invalid 'VALUE': OPT1\|OPT2` | `invalid 'foo': json\|xml`    |
+| Not found | `TYPE not found: ID`          | `file not found: /path`       |
+| Must be   | `PARAM must be REQUIREMENT`   | `userId must be alphanumeric` |
+
+## Technical Details
+
+- **Controller path:** `/app/app/Http/Controllers` (mount target)
+- **Namespace:** optional (`App\Http\Controllers` or none)
+- **Auto-load:** all `.php` files in controller path
+- **Transport:** StreamableHttpTransport (HTTP)
+- **Session:** FileSessionStore
+- **Server:** FrankenPHP (port 80)
+- **PHP:** 8.4+
+
+## Docker Behavior
+
+On startup:
+1. Create controller directory if missing
+2. Load all `.php` files from controller path
+3. Create session directory if missing
+4. Start FrankenPHP on port 80
+
+Mount requirements:
+- `-v <local-path>:/app/app/Http/Controllers` - controllers (required)
+- `-v <volume>:/app/storage/mcp-sessions` - sessions (optional, for persistence)

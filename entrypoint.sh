@@ -27,6 +27,20 @@ if [ ! -f "$CONTROLLER_PATH/README.md" ] && [ -f "/app/README.md" ]; then
     fi
 fi
 
+if [ ! -f "$CONTROLLER_PATH/Example.php" ] && [ -f "/app/Example.php" ]; then
+    if cp /app/Example.php "$CONTROLLER_PATH/Example.php" 2>/dev/null; then
+        echo "Published Example.php to mounted directory"
+        echo ""
+    fi
+fi
+
+if [ ! -f "$CONTROLLER_PATH/.env.example" ] && [ -f "/app/.env.example" ]; then
+    if cp /app/.env.example "$CONTROLLER_PATH/.env.example" 2>/dev/null; then
+        echo "Published .env.example to mounted directory"
+        echo ""
+    fi
+fi
+
 if [ ! -d "$MCP_SESSIONS_DIR" ]; then
     echo "Creating sessions directory: $MCP_SESSIONS_DIR"
     mkdir -p "$MCP_SESSIONS_DIR"
