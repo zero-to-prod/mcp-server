@@ -4,8 +4,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | sh
 
 # Defaults
-DEFAULT_MCP_NAME="mcp-server"
-DEFAULT_CONTAINER_NAME="mcp1"
+DEFAULT_SERVER_NAME="mcp-server"
 DEFAULT_PORT="8092"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 AGENT_CMD="claude mcp add --transport http"
@@ -100,8 +99,7 @@ main() {
         info "Running in non-interactive mode, using defaults"
     fi
 
-    prompt "MCP server name (${DEFAULT_MCP_NAME}): " "$DEFAULT_MCP_NAME" "MCP_NAME"
-    prompt "Docker container name (${DEFAULT_CONTAINER_NAME}): " "$DEFAULT_CONTAINER_NAME" "CONTAINER_NAME"
+    prompt "Server name (${DEFAULT_SERVER_NAME}): " "$DEFAULT_SERVER_NAME" "SERVER_NAME"
     prompt "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
     prompt "Install directory (current: $(pwd)): " "" "CUSTOM_INSTALL_DIR"
 
@@ -138,43 +136,43 @@ main() {
             error "Failed to copy .env.example"
             exit 1
         }
-        plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/' .env"
-        sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/" .env
+         plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
+        sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
     else
         plain "$ cat > .env"
         cat > .env <<EOF
-MCP_SERVER_NAME=${MCP_NAME}
+MCP_SERVER_NAME=${SERVER_NAME}
 APP_VERSION=0.0.0
 APP_DEBUG=false
 MCP_CONTROLLER_PATHS=controllers
 MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 EOF
     fi
-    success "Created: .env (MCP_SERVER_NAME=${MCP_NAME})"
+    success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME})"
 
     # Step 3: Remove existing container if present
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
-        plain "$ docker stop ${CONTAINER_NAME}"
-        docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-        plain "$ docker rm ${CONTAINER_NAME}"
-        docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-        info "Removed existing container: ${CONTAINER_NAME}"
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}$"; then
+        plain "$ docker stop ${SERVER_NAME}"
+        docker stop "${SERVER_NAME}" >/dev/null 2>&1 || true
+        plain "$ docker rm ${SERVER_NAME}"
+        docker rm "${SERVER_NAME}" >/dev/null 2>&1 || true
+        info "Removed existing container: ${SERVER_NAME}"
     fi
 
     # Step 4: Start server
-    plain "$ docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 --env-file .env \\"
+    plain "$ docker run -d --name ${SERVER_NAME} -p ${PORT}:80 --env-file .env \\"
     plain "    -v \$(pwd):/app/app/Http/Controllers \\"
-    plain "    -v ${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions \\"
+    plain "    -v ${SERVER_NAME}-sessions:/app/storage/mcp-sessions \\"
     plain "    ${DEFAULT_IMAGE}"
 
     if docker run -d \
-        --name "${CONTAINER_NAME}" \
+        --name "${SERVER_NAME}" \
         -p "${PORT}:80" \
         --env-file .env \
         -v "$(pwd):/app/app/Http/Controllers" \
-        -v "${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions" \
+        -v "${SERVER_NAME}-sessions:/app/storage/mcp-sessions" \
         "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
-        success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
+        success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
     else
         error "Failed to start container"
         exit 1
@@ -186,20 +184,20 @@ EOF
         prompt_yn "Add to Claude agents? (y/N): " "ADD_TO_CLAUDE"
 
         if [ "$ADD_TO_CLAUDE" = "yes" ]; then
-            plain "$ ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-            if ${AGENT_CMD} "${MCP_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-                success "Added to Claude: ${MCP_NAME}"
+            plain "$ ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
+            if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
+                success "Added to Claude: ${SERVER_NAME}"
             else
                 error "Failed to add to Claude"
-                plain "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+                plain "  Manually run: ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
             fi
         fi
     elif [ "$CLAUDE_AVAILABLE" = "yes" ]; then
         plain "To add to Claude agents, run:"
-        plain "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+        plain "  ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
     else
         plain "To add to Claude agents, install Claude CLI and run:"
-        plain "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+        plain "  ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
     fi
 
     plain ""
