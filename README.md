@@ -48,6 +48,53 @@ docker run -d --name mcp1 -p 8092:80 \
 claude mcp add --transport http mcp1 http://localhost:8092
 ```
 
+## Docker Operations
+
+### Restart after environment variable changes
+
+When adding or modifying environment variables in `.env`:
+```shell
+# docker-compose
+docker compose restart
+
+# docker run
+docker restart mcp1
+```
+
+Environment variables only load at container startup. Any changes require restart.
+
+### Reconnect after tool changes
+
+When adding, removing, or modifying tools (controller methods with `#[McpTool]`, `#[McpResource]`, etc.):
+```shell
+claude mcp reconnect mcp1
+```
+
+The MCP client caches tool definitions. Reconnection forces discovery of changes.
+
+## Plugin Architecture
+
+Each controller file is a self-contained plugin:
+- No shared dependencies between files
+- Include all required imports in each file
+- Each file operates independently
+- No cross-file references
+
+**File structure:**
+```php
+<?php
+declare(strict_types=1);
+
+// Include ALL imports needed by THIS file
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\Schema;
+use Mcp\Exception\ToolCallException;
+
+class PluginController {
+    // All methods and dependencies in one file
+}
+```
+
 ## Advanced Usage
 
 ### Multiple instances
@@ -89,6 +136,17 @@ docker run -d --name mcp1 -p 8092:80 \
 | APP_VERSION      | 0.0.0                     | version string                 |
 | APP_DEBUG        | false                     | enable debug logs (true/false) |
 | API_KEY          | -                         | api key for controllers        |
+
+## SDK Documentation
+
+**Official source:** https://github.com/modelcontextprotocol/php-sdk
+
+Reference the official PHP SDK repository for:
+- Latest API changes
+- Complete method signatures
+- Advanced configuration options
+- Implementation examples
+- Version-specific features
 
 ## MCP SDK Reference
 
