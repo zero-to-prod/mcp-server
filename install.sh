@@ -44,23 +44,36 @@ fi
 CLAUDE_AVAILABLE=false
 command_exists claude && CLAUDE_AVAILABLE=true
 
-# Prompt for configuration
-echo ""
-read -p "MCP server name (default: ${DEFAULT_MCP_NAME}): " MCP_NAME
-MCP_NAME=${MCP_NAME:-$DEFAULT_MCP_NAME}
+# Detect if running interactively
+if [ -t 0 ]; then
+    INTERACTIVE=true
+else
+    INTERACTIVE=false
+fi
 
-read -p "Docker container name (default: ${DEFAULT_CONTAINER_NAME}): " CONTAINER_NAME
-CONTAINER_NAME=${CONTAINER_NAME:-$DEFAULT_CONTAINER_NAME}
+# Prompt for configuration (only if interactive)
+if [ "$INTERACTIVE" = true ]; then
+    echo ""
+    read -p "MCP server name (default: ${DEFAULT_MCP_NAME}): " MCP_NAME
+    MCP_NAME=${MCP_NAME:-$DEFAULT_MCP_NAME}
 
-read -p "Port (default: ${DEFAULT_PORT}): " PORT
-PORT=${PORT:-$DEFAULT_PORT}
+    read -p "Docker container name (default: ${DEFAULT_CONTAINER_NAME}): " CONTAINER_NAME
+    CONTAINER_NAME=${CONTAINER_NAME:-$DEFAULT_CONTAINER_NAME}
 
-read -p "Install to a different directory? (leave empty for current directory): " INSTALL_DIR
+    read -p "Port (default: ${DEFAULT_PORT}): " PORT
+    PORT=${PORT:-$DEFAULT_PORT}
 
-# Use current directory if not specified
-if [ -n "$INSTALL_DIR" ]; then
-    mkdir -p "${INSTALL_DIR}"
-    cd "${INSTALL_DIR}"
+    read -p "Install to a different directory? (leave empty for current directory): " INSTALL_DIR
+
+    if [ -n "$INSTALL_DIR" ]; then
+        mkdir -p "${INSTALL_DIR}"
+        cd "${INSTALL_DIR}"
+    fi
+else
+    # Non-interactive mode: use defaults
+    MCP_NAME="${DEFAULT_MCP_NAME}"
+    CONTAINER_NAME="${DEFAULT_CONTAINER_NAME}"
+    PORT="${DEFAULT_PORT}"
 fi
 
 INSTALL_DIR="$(pwd)"
@@ -116,7 +129,7 @@ docker run -d \
 success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
 
 # Step 4: Connect to agents
-if [ "$CLAUDE_AVAILABLE" = true ]; then
+if [ "$CLAUDE_AVAILABLE" = true ] && [ "$INTERACTIVE" = true ]; then
     echo ""
     read -p "Add to Claude agents? (y/N): " ADD_TO_CLAUDE
     ADD_TO_CLAUDE=${ADD_TO_CLAUDE:-N}
@@ -130,6 +143,10 @@ if [ "$CLAUDE_AVAILABLE" = true ]; then
             echo "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
         fi
     fi
+elif [ "$CLAUDE_AVAILABLE" = true ]; then
+    echo ""
+    echo "To add to Claude agents, run:"
+    echo "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
 else
     echo ""
     echo "To add to Claude agents, install Claude CLI and run:"
