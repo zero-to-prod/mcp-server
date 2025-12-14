@@ -65,10 +65,9 @@ Environment variables only load at container startup. Any changes require restar
 
 ### Reconnect after tool changes
 
-When adding, removing, or modifying tools (controller methods with `#[McpTool]`, `#[McpResource]`, etc.):
-```shell
-claude mcp reconnect mcp1
-```
+When adding, removing, or modifying tools (controller methods with `#[McpTool]`, `#[McpResource]`, etc.), the MCP client must reconnect to discover changes.
+
+**Important:** There is no command line tool to trigger reconnection. The agent must prompt the user to manually reconnect using their MCP client (e.g., `/mcp` command in Claude Code CLI).
 
 The MCP client caches tool definitions. Reconnection forces discovery of changes.
 
@@ -93,6 +92,71 @@ use Mcp\Exception\ToolCallException;
 class PluginController {
     // All methods and dependencies in one file
 }
+```
+
+## Testing Tools
+
+After creating or modifying tools, verify functionality:
+
+### 1. Reconnect MCP client
+
+**Manual reconnection required.** There is no command line tool to reconnect. The agent must prompt the user to manually reconnect using their MCP client.
+
+For Claude Code CLI users: Use the `/mcp` command to reconnect.
+
+### 2. List available tools
+```shell
+claude mcp inspect mcp1
+```
+
+Verify new tool appears in output with correct name and description.
+
+### 3. Test tool execution
+```shell
+claude mcp call mcp1 tool_name '{"param": "value"}'
+```
+
+**Validation checklist:**
+- Tool executes without errors
+- Return value matches expected format
+- Error cases throw appropriate exceptions
+- Parameter validation works correctly
+
+### 4. Common test patterns
+
+**Test valid input:**
+```shell
+claude mcp call mcp1 divide '{"a": 10, "b": 2}'
+# Expected: {"result": 5}
+```
+
+**Test validation:**
+```shell
+claude mcp call mcp1 divide '{"a": 10, "b": 0}'
+# Expected: ToolCallException: "cannot divide by zero"
+```
+
+**Test missing parameters:**
+```shell
+claude mcp call mcp1 divide '{"a": 10}'
+# Expected: Parameter validation error
+```
+
+### 5. Debug failures
+
+**Check container logs:**
+```shell
+docker logs mcp1
+```
+
+**Check syntax errors:**
+```shell
+docker exec mcp1 php -l /app/app/Http/Controllers/YourController.php
+```
+
+**Verify environment:**
+```shell
+docker exec mcp1 env | grep MCP
 ```
 
 ## Advanced Usage
