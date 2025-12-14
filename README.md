@@ -4,6 +4,13 @@ PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, ex
 
 ## Quick Start
 
+**One-line install** (recommended):
+```shell
+curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | bash
+```
+
+Or manually:
+
 ### 1. Initialize project directory
 
 Create template files (README.md, Example.php, .env.example):
