@@ -44,33 +44,27 @@ fi
 CLAUDE_AVAILABLE=false
 command_exists claude && CLAUDE_AVAILABLE=true
 
-# Detect if running interactively
-if [ -t 0 ]; then
-    INTERACTIVE=true
-else
-    INTERACTIVE=false
-fi
-
-# Prompt for configuration (only if interactive)
-if [ "$INTERACTIVE" = true ]; then
-    echo ""
-    read -p "MCP server name (default: ${DEFAULT_MCP_NAME}): " MCP_NAME
+# Prompt for configuration
+echo ""
+if [ -c /dev/tty ]; then
+    read -p "MCP server name (default: ${DEFAULT_MCP_NAME}): " MCP_NAME < /dev/tty
     MCP_NAME=${MCP_NAME:-$DEFAULT_MCP_NAME}
 
-    read -p "Docker container name (default: ${DEFAULT_CONTAINER_NAME}): " CONTAINER_NAME
+    read -p "Docker container name (default: ${DEFAULT_CONTAINER_NAME}): " CONTAINER_NAME < /dev/tty
     CONTAINER_NAME=${CONTAINER_NAME:-$DEFAULT_CONTAINER_NAME}
 
-    read -p "Port (default: ${DEFAULT_PORT}): " PORT
+    read -p "Port (default: ${DEFAULT_PORT}): " PORT < /dev/tty
     PORT=${PORT:-$DEFAULT_PORT}
 
-    read -p "Install to a different directory? (leave empty for current directory): " INSTALL_DIR
+    read -p "Install to a different directory? (leave empty for current directory): " INSTALL_DIR < /dev/tty
 
     if [ -n "$INSTALL_DIR" ]; then
         mkdir -p "${INSTALL_DIR}"
         cd "${INSTALL_DIR}"
     fi
 else
-    # Non-interactive mode: use defaults
+    # Fallback to defaults if /dev/tty not available
+    info "Running in non-interactive mode, using defaults"
     MCP_NAME="${DEFAULT_MCP_NAME}"
     CONTAINER_NAME="${DEFAULT_CONTAINER_NAME}"
     PORT="${DEFAULT_PORT}"
@@ -129,9 +123,9 @@ docker run -d \
 success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
 
 # Step 4: Connect to agents
-if [ "$CLAUDE_AVAILABLE" = true ] && [ "$INTERACTIVE" = true ]; then
+if [ "$CLAUDE_AVAILABLE" = true ] && [ -c /dev/tty ]; then
     echo ""
-    read -p "Add to Claude agents? (y/N): " ADD_TO_CLAUDE
+    read -p "Add to Claude agents? (y/N): " ADD_TO_CLAUDE < /dev/tty
     ADD_TO_CLAUDE=${ADD_TO_CLAUDE:-N}
 
     if [[ "$ADD_TO_CLAUDE" =~ ^[Yy]$ ]]; then
