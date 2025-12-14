@@ -1,152 +1,211 @@
-#!/usr/bin/env bash
-
+#!/bin/sh
 # MCP Server Quick Install Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | bash
+# POSIX-compliant - works with any POSIX shell (sh, bash, dash, zsh, etc.)
+# Usage: curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | sh
 
-set -e
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Default values
+# Defaults
 DEFAULT_MCP_NAME="mcp-server"
 DEFAULT_CONTAINER_NAME="mcp1"
 DEFAULT_PORT="8092"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 AGENT_CMD="claude mcp add --transport http"
 
-# Print colored output
-info() { echo -e "${BLUE}→${NC} $1"; }
-success() { echo -e "${GREEN}✓${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; }
+# Output functions using printf for portability
+info() { printf '\033[0;34m→\033[0m %s\n' "$1"; }
+success() { printf '\033[0;32m✓\033[0m %s\n' "$1"; }
+error() { printf '\033[0;31m✗\033[0m %s\n' "$1"; }
+plain() { printf '%s\n' "$1"; }
 
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Check prerequisites
-if ! command_exists docker; then
-    error "Docker is not installed. Visit: https://docs.docker.com/get-docker/"
-    exit 1
-fi
+# Prompt with default value (POSIX-compliant)
+prompt() {
+    prompt_text="$1"
+    default_value="$2"
+    var_name="$3"
 
-if ! docker info >/dev/null 2>&1; then
-    error "Docker daemon is not running. Please start Docker first."
-    exit 1
-fi
-
-# Check for Claude CLI
-CLAUDE_AVAILABLE=false
-command_exists claude && CLAUDE_AVAILABLE=true
-
-# Prompt for configuration
-echo ""
-if [ -c /dev/tty ]; then
-    read -p "MCP server name (default: ${DEFAULT_MCP_NAME}): " MCP_NAME < /dev/tty
-    MCP_NAME=${MCP_NAME:-$DEFAULT_MCP_NAME}
-
-    read -p "Docker container name (default: ${DEFAULT_CONTAINER_NAME}): " CONTAINER_NAME < /dev/tty
-    CONTAINER_NAME=${CONTAINER_NAME:-$DEFAULT_CONTAINER_NAME}
-
-    read -p "Port (default: ${DEFAULT_PORT}): " PORT < /dev/tty
-    PORT=${PORT:-$DEFAULT_PORT}
-
-    read -p "Install to a different directory? (leave empty for current directory): " INSTALL_DIR < /dev/tty
-
-    if [ -n "$INSTALL_DIR" ]; then
-        mkdir -p "${INSTALL_DIR}"
-        cd "${INSTALL_DIR}"
-    fi
-else
-    # Fallback to defaults if /dev/tty not available
-    info "Running in non-interactive mode, using defaults"
-    MCP_NAME="${DEFAULT_MCP_NAME}"
-    CONTAINER_NAME="${DEFAULT_CONTAINER_NAME}"
-    PORT="${DEFAULT_PORT}"
-fi
-
-INSTALL_DIR="$(pwd)"
-
-echo ""
-info "Installing to: ${INSTALL_DIR}"
-
-# Step 1: Initialize project
-echo "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
-docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1
-success "Created: README.md, ExampleController.php, .env.example"
-
-# Step 2: Create .env file
-echo "$ cp .env.example .env"
-if [ -f .env.example ]; then
-    cp .env.example .env
-    echo "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/' .env"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/" .env
+    # Try interactive prompt via /dev/tty
+    if [ -c /dev/tty ]; then
+        printf '%s' "$prompt_text" > /dev/tty
+        read -r input < /dev/tty
+        if [ -z "$input" ]; then
+            eval "$var_name=\$default_value"
+        else
+            eval "$var_name=\$input"
+        fi
     else
-        sed -i "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/" .env
+        # Non-interactive: use default
+        eval "$var_name=\$default_value"
     fi
-else
-    echo "$ cat > .env"
-    cat > .env <<EOF
+}
+
+# Prompt yes/no (POSIX-compliant)
+prompt_yn() {
+    prompt_text="$1"
+    var_name="$2"
+
+    if [ -c /dev/tty ]; then
+        printf '%s' "$prompt_text" > /dev/tty
+        read -r input < /dev/tty
+        case "$input" in
+            [Yy]|[Yy][Ee][Ss]) eval "$var_name=yes" ;;
+            *) eval "$var_name=no" ;;
+        esac
+    else
+        eval "$var_name=no"
+    fi
+}
+
+# Platform-independent sed in-place edit
+sed_inplace() {
+    pattern="$1"
+    file="$2"
+
+    # Detect platform
+    case "$(uname -s)" in
+        Darwin*) sed -i '' "$pattern" "$file" ;;
+        *) sed -i "$pattern" "$file" ;;
+    esac
+}
+
+# Main installation
+main() {
+    plain ""
+    info "MCP Server Installation"
+    plain ""
+
+    # Check Docker
+    if ! command_exists docker; then
+        error "Docker is not installed. Visit: https://docs.docker.com/get-docker/"
+        exit 1
+    fi
+
+    if ! docker info >/dev/null 2>&1; then
+        error "Docker daemon is not running. Please start Docker first."
+        exit 1
+    fi
+
+    # Check Claude CLI
+    CLAUDE_AVAILABLE="no"
+    command_exists claude && CLAUDE_AVAILABLE="yes"
+
+    # Interactive configuration
+    if [ -c /dev/tty ]; then
+        plain "Configuration (press Enter for defaults):"
+        plain ""
+    else
+        info "Running in non-interactive mode, using defaults"
+    fi
+
+    prompt "MCP server name (${DEFAULT_MCP_NAME}): " "$DEFAULT_MCP_NAME" "MCP_NAME"
+    prompt "Docker container name (${DEFAULT_CONTAINER_NAME}): " "$DEFAULT_CONTAINER_NAME" "CONTAINER_NAME"
+    prompt "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
+    prompt "Install directory (current: $(pwd)): " "" "CUSTOM_INSTALL_DIR"
+
+    # Change directory if specified
+    if [ -n "$CUSTOM_INSTALL_DIR" ]; then
+        mkdir -p "$CUSTOM_INSTALL_DIR" || {
+            error "Failed to create directory: $CUSTOM_INSTALL_DIR"
+            exit 1
+        }
+        cd "$CUSTOM_INSTALL_DIR" || {
+            error "Failed to change to directory: $CUSTOM_INSTALL_DIR"
+            exit 1
+        }
+    fi
+
+    INSTALL_DIR="$(pwd)"
+    plain ""
+    info "Installing to: ${INSTALL_DIR}"
+    plain ""
+
+    # Step 1: Initialize project
+    plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
+    if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
+        success "Created: README.md, ExampleController.php, .env.example"
+    else
+        error "Failed to initialize project"
+        exit 1
+    fi
+
+    # Step 2: Create .env file
+    plain "$ cp .env.example .env"
+    if [ -f .env.example ]; then
+        cp .env.example .env || {
+            error "Failed to copy .env.example"
+            exit 1
+        }
+        plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/' .env"
+        sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${MCP_NAME}/" .env
+    else
+        plain "$ cat > .env"
+        cat > .env <<EOF
 MCP_SERVER_NAME=${MCP_NAME}
 APP_VERSION=0.0.0
 APP_DEBUG=false
 MCP_CONTROLLER_PATHS=controllers
 MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 EOF
-fi
-success "Created: .env (MCP_SERVER_NAME=${MCP_NAME})"
-
-# Step 3: Start server
-if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo "$ docker stop ${CONTAINER_NAME}"
-    docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-    echo "$ docker rm ${CONTAINER_NAME}"
-    docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-    info "Removed existing container: ${CONTAINER_NAME}"
-fi
-
-echo "$ docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 --env-file .env -v \$(pwd):/app/app/Http/Controllers -v ${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions ${DEFAULT_IMAGE}"
-docker run -d \
-    --name "${CONTAINER_NAME}" \
-    -p "${PORT}:80" \
-    --env-file .env \
-    -v "$(pwd):/app/app/Http/Controllers" \
-    -v "${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions" \
-    "${DEFAULT_IMAGE}" >/dev/null 2>&1
-
-success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
-
-# Step 4: Connect to agents
-if [ "$CLAUDE_AVAILABLE" = true ] && [ -c /dev/tty ]; then
-    echo ""
-    read -p "Add to Claude agents? (y/N): " ADD_TO_CLAUDE < /dev/tty
-    ADD_TO_CLAUDE=${ADD_TO_CLAUDE:-N}
-
-    if [[ "$ADD_TO_CLAUDE" =~ ^[Yy]$ ]]; then
-        echo "$ ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-        if ${AGENT_CMD} "${MCP_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-            success "Added to Claude: ${MCP_NAME}"
-        else
-            error "Failed to add to Claude"
-            echo "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-        fi
     fi
-elif [ "$CLAUDE_AVAILABLE" = true ]; then
-    echo ""
-    echo "To add to Claude agents, run:"
-    echo "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-else
-    echo ""
-    echo "To add to Claude agents, install Claude CLI and run:"
-    echo "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-fi
+    success "Created: .env (MCP_SERVER_NAME=${MCP_NAME})"
 
-echo ""
-echo "Get started by providing the README.md to your agent to build your own MCP tools!"
-echo ""
+    # Step 3: Remove existing container if present
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+        plain "$ docker stop ${CONTAINER_NAME}"
+        docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        plain "$ docker rm ${CONTAINER_NAME}"
+        docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        info "Removed existing container: ${CONTAINER_NAME}"
+    fi
+
+    # Step 4: Start server
+    plain "$ docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 --env-file .env \\"
+    plain "    -v \$(pwd):/app/app/Http/Controllers \\"
+    plain "    -v ${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions \\"
+    plain "    ${DEFAULT_IMAGE}"
+
+    if docker run -d \
+        --name "${CONTAINER_NAME}" \
+        -p "${PORT}:80" \
+        --env-file .env \
+        -v "$(pwd):/app/app/Http/Controllers" \
+        -v "${CONTAINER_NAME}-sessions:/app/storage/mcp-sessions" \
+        "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
+        success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
+    else
+        error "Failed to start container"
+        exit 1
+    fi
+
+    # Step 5: Connect to Claude agents
+    plain ""
+    if [ "$CLAUDE_AVAILABLE" = "yes" ] && [ -c /dev/tty ]; then
+        prompt_yn "Add to Claude agents? (y/N): " "ADD_TO_CLAUDE"
+
+        if [ "$ADD_TO_CLAUDE" = "yes" ]; then
+            plain "$ ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+            if ${AGENT_CMD} "${MCP_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
+                success "Added to Claude: ${MCP_NAME}"
+            else
+                error "Failed to add to Claude"
+                plain "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+            fi
+        fi
+    elif [ "$CLAUDE_AVAILABLE" = "yes" ]; then
+        plain "To add to Claude agents, run:"
+        plain "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+    else
+        plain "To add to Claude agents, install Claude CLI and run:"
+        plain "  ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+    fi
+
+    plain ""
+    plain "Get started by providing the README.md to your agent to build your own MCP tools!"
+    plain ""
+}
+
+# Run main function
+main
