@@ -17,12 +17,6 @@ DEFAULT_MCP_NAME="mcp-server"
 DEFAULT_CONTAINER_NAME="mcp1"
 DEFAULT_PORT="8092"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
-
-# Agent configuration
-declare -A AGENTS=(
-    [1]="Claude Desktop"
-    [2]="Claude Code"
-)
 AGENT_CMD="claude mcp add --transport http"
 
 # Print colored output
@@ -124,37 +118,18 @@ success "Started: ${CONTAINER_NAME} on http://localhost:${PORT}"
 # Step 4: Connect to agents
 if [ "$CLAUDE_AVAILABLE" = true ]; then
     echo ""
-    echo "Select agents to install MCP server to (comma-separated numbers):"
-    for key in $(echo "${!AGENTS[@]}" | tr ' ' '\n' | sort -n); do
-        echo "  ${key}) ${AGENTS[$key]}"
-    done
-    echo ""
-    read -p "Select agents (default: 1,2): " SELECTED_AGENTS
-    SELECTED_AGENTS=${SELECTED_AGENTS:-"1,2"}
+    read -p "Add to Claude agents? (y/N): " ADD_TO_CLAUDE
+    ADD_TO_CLAUDE=${ADD_TO_CLAUDE:-N}
 
-    # Parse selected agents
-    IFS=',' read -ra AGENT_IDS <<< "$SELECTED_AGENTS"
-
-    echo ""
-    for agent_id in "${AGENT_IDS[@]}"; do
-        # Trim whitespace
-        agent_id=$(echo "$agent_id" | xargs)
-
-        # Check if valid agent ID
-        if [ -n "${AGENTS[$agent_id]}" ]; then
-            agent_name="${AGENTS[$agent_id]}"
-            echo "$ ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-
-            if ${AGENT_CMD} "${MCP_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-                success "Added to ${agent_name}: ${MCP_NAME}"
-            else
-                error "Failed to add to ${agent_name}"
-                echo "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
-            fi
+    if [[ "$ADD_TO_CLAUDE" =~ ^[Yy]$ ]]; then
+        echo "$ ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
+        if ${AGENT_CMD} "${MCP_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
+            success "Added to Claude: ${MCP_NAME}"
         else
-            error "Invalid agent ID: ${agent_id}"
+            error "Failed to add to Claude"
+            echo "  Manually run: ${AGENT_CMD} ${MCP_NAME} http://localhost:${PORT}"
         fi
-    done
+    fi
 else
     echo ""
     echo "To add to Claude agents, install Claude CLI and run:"
