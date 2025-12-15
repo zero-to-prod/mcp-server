@@ -5,7 +5,8 @@
 
 # Defaults
 DEFAULT_SERVER_NAME="mcp-server"
-DEFAULT_PORT="8093"
+DEFAULT_PORT="8080"
+DEFAULT_REDIS_PORT="6379"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 AGENT_CMD="claude mcp add --transport http"
 
@@ -75,6 +76,134 @@ sed_inplace() {
     esac
 }
 
+# Sanitize server name: allow alphanumeric, hyphens, underscores only
+sanitize_server_name() {
+    input="$1"
+    # Remove any characters that aren't alphanumeric, hyphens, or underscores
+    sanitized=$(printf '%s' "$input" | sed 's/[^a-zA-Z0-9_-]//g')
+    printf '%s' "$sanitized"
+}
+
+# Validate port number: must be 1-65535
+validate_port() {
+    port="$1"
+    # Check if numeric
+    case "$port" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    # Check range
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        return 1
+    fi
+    return 0
+}
+
+# Sanitize directory path: prevent path traversal
+sanitize_path() {
+    path="$1"
+    # If empty, return empty
+    if [ -z "$path" ]; then
+        printf ''
+        return 0
+    fi
+    # Remove any .. sequences and clean up
+    sanitized=$(printf '%s' "$path" | sed 's/\.\.//g' | sed 's|///*|/|g')
+    printf '%s' "$sanitized"
+}
+
+# Check if port is in use
+is_port_in_use() {
+    port="$1"
+    # Try to connect to the port using different methods based on available tools
+    if command_exists nc; then
+        # Use netcat (most reliable)
+        nc -z localhost "$port" >/dev/null 2>&1
+        return $?
+    elif command_exists lsof; then
+        # Use lsof
+        lsof -i:"$port" >/dev/null 2>&1
+        return $?
+    elif command_exists ss; then
+        # Use ss (modern netstat)
+        ss -ln | grep -q ":${port} " >/dev/null 2>&1
+        return $?
+    elif command_exists netstat; then
+        # Use netstat (fallback)
+        netstat -an | grep -q "[:.]${port} " >/dev/null 2>&1
+        return $?
+    else
+        # No port checking tool available, assume port is free
+        return 1
+    fi
+}
+
+# Prompt for port with availability check
+prompt_port() {
+    prompt_text="$1"
+    default_value="$2"
+    var_name="$3"
+
+    # Check if we're in interactive mode
+    is_interactive="no"
+    if [ -c /dev/tty ]; then
+        is_interactive="yes"
+    fi
+
+    # Initialize port value
+    port_value="$default_value"
+
+    # In non-interactive mode, just use default without calling prompt
+    if [ "$is_interactive" = "no" ]; then
+        eval "$var_name=\$default_value"
+    fi
+
+    while true; do
+        # In interactive mode, prompt the user
+        if [ "$is_interactive" = "yes" ]; then
+            prompt "$prompt_text" "$default_value" "$var_name"
+            eval "port_value=\$$var_name"
+        fi
+
+        # Validate port
+        if ! validate_port "$port_value"; then
+            if [ "$is_interactive" = "yes" ]; then
+                error "Invalid port number. Must be between 1-65535."
+                continue
+            else
+                error "Invalid port number. Using default: ${default_value}"
+                port_value="$default_value"
+                eval "$var_name=\$default_value"
+            fi
+        fi
+
+        # Check if port is in use
+        if is_port_in_use "$port_value"; then
+            if [ "$is_interactive" = "yes" ]; then
+                error "Port ${port_value} is already in use. Please choose a different port."
+                # Continue loop to prompt again
+            else
+                # Non-interactive mode: auto-increment to find available port
+                info "Port ${port_value} is in use. Finding available port..."
+                port_value=$((port_value + 1))
+                while [ "$port_value" -le 65535 ] && is_port_in_use "$port_value"; do
+                    port_value=$((port_value + 1))
+                done
+                if [ "$port_value" -le 65535 ]; then
+                    eval "$var_name=$port_value"
+                    info "Using available port: ${port_value}"
+                    break
+                else
+                    error "Could not find an available port"
+                    exit 1
+                fi
+            fi
+        else
+            # Port is available
+            break
+        fi
+    done
+}
+
 # Main installation
 main() {
     plain ""
@@ -118,8 +247,19 @@ main() {
     fi
 
     prompt "Server name (${DEFAULT_SERVER_NAME}): " "$DEFAULT_SERVER_NAME" "SERVER_NAME"
-    prompt "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
+    prompt_port "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
+    prompt_port "Redis port (${DEFAULT_REDIS_PORT}): " "$DEFAULT_REDIS_PORT" "REDIS_PORT"
     prompt "Install directory (current: $(pwd)): " "" "CUSTOM_INSTALL_DIR"
+
+    # Sanitize server name
+    SERVER_NAME=$(sanitize_server_name "$SERVER_NAME")
+    if [ -z "$SERVER_NAME" ]; then
+        error "Invalid server name. Using default: ${DEFAULT_SERVER_NAME}"
+        SERVER_NAME="$DEFAULT_SERVER_NAME"
+    fi
+
+    # Sanitize install directory
+    CUSTOM_INSTALL_DIR=$(sanitize_path "$CUSTOM_INSTALL_DIR")
 
     # Change directory if specified
     if [ -n "$CUSTOM_INSTALL_DIR" ]; then
@@ -220,6 +360,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-redis
+    ports:
+      - "${REDIS_PORT}:6379"
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -253,7 +395,7 @@ EOF
         plain "$ ${COMPOSE_CMD} up -d"
         if ${COMPOSE_CMD} up -d 2>&1; then
             success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
-            success "Started: ${SERVER_NAME}-redis"
+            success "Started: ${SERVER_NAME}-redis on localhost:${REDIS_PORT}"
         else
             error "Failed to start services"
             exit 1
