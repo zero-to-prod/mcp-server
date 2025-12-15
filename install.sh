@@ -123,7 +123,7 @@ main() {
     # Step 1: Initialize project
     plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
     if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-        success "Created: README.md, ExampleController.php, .env.example"
+        success "Created: README.md, Example.php, RedisConnection.php, Reference.php, .env.example"
     else
         error "Failed to initialize project"
         exit 1

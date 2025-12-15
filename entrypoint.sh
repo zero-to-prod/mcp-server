@@ -24,6 +24,16 @@ if [ "$1" = "init" ]; then
         echo "✓ Created Example.php"
     fi
 
+    if [ -f "/app/RedisConnection.php" ]; then
+        cp /app/RedisConnection.php "$INIT_DIR/RedisConnection.php" 2>/dev/null || true
+        echo "✓ Created RedisConnection.php"
+    fi
+
+    if [ -f "/app/Reference.php" ]; then
+        cp /app/Reference.php "$INIT_DIR/Reference.php" 2>/dev/null || true
+        echo "✓ Created Reference.php"
+    fi
+
     if [ -f "/app/.env.example" ]; then
         cp /app/.env.example "$INIT_DIR/.env.example" 2>/dev/null || true
         echo "✓ Created .env.example"
@@ -73,6 +83,20 @@ fi
 if [ ! -f "$CONTROLLER_PATH/Example.php" ] && [ -f "/app/Example.php" ]; then
     if cp /app/Example.php "$CONTROLLER_PATH/Example.php" 2>/dev/null; then
         echo "Published Example.php to mounted directory"
+        echo ""
+    fi
+fi
+
+if [ ! -f "$CONTROLLER_PATH/RedisConnection.php" ] && [ -f "/app/RedisConnection.php" ]; then
+    if cp /app/RedisConnection.php "$CONTROLLER_PATH/RedisConnection.php" 2>/dev/null; then
+        echo "Published RedisConnection.php to mounted directory"
+        echo ""
+    fi
+fi
+
+if [ ! -f "$CONTROLLER_PATH/Reference.php" ] && [ -f "/app/Reference.php" ]; then
+    if cp /app/Reference.php "$CONTROLLER_PATH/Reference.php" 2>/dev/null; then
+        echo "Published Reference.php to mounted directory"
         echo ""
     fi
 fi

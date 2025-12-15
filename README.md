@@ -94,6 +94,276 @@ class PluginController {
 }
 ```
 
+## Redis Reference System
+
+The Redis Reference system enables efficient token usage by storing large datasets in Redis and returning lightweight reference IDs instead of full data. This achieves **90%+ token reduction** while maintaining full observability through inspection tools.
+
+### Why Use References?
+
+**Problem:** Tools returning large responses (50KB logs, 1000 rows) consume massive tokens when passed between tools or presented to LLMs.
+
+**Solution:** Store data in Redis, return reference ID + metadata + preview (~500 bytes). LLM inspects preview, makes decisions, passes refs between tools - only loads full data when needed.
+
+**Benefits:**
+- 🚀 **Token reduction** (ref + preview vs full data)
+- 🧠 **Natural reasoning** (inspect → decide → act)
+- 🛠️ **Error recovery** (see preview, adjust strategy)
+- 🔍 **Full observability** (inspect any ref anytime)
+
+### Setup Requirements
+
+#### 1. Environment Configuration
+
+Redis configuration is included in `.env`:
+```bash
+REDIS_HOST=redis          # Redis container name (Docker) or localhost
+REDIS_PORT=6379           # Default Redis port
+REDIS_PASSWORD=           # Optional password
+```
+
+#### 2. Docker Compose
+
+Redis service is automatically included in `docker-compose.yml`:
+```yaml
+services:
+  mcp:
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+```
+
+Start with: `docker compose up -d`
+
+### Using RedisConnection Trait
+
+Add Redis support to any controller:
+
+```php
+<?php
+declare(strict_types=1);
+namespace App\Http\Controllers;
+
+use Mcp\Capability\Attribute\{McpTool,Schema};
+
+class MyController
+{
+    use RedisConnection;  // Add this trait
+
+    #[McpTool(
+        name: 'my_tool',
+        description: 'Tool that returns reference instead of full data'
+    )]
+    public function myTool(
+        #[Schema(type: 'string', description: 'Query parameter')]
+        string $query,
+        #[Schema(type: 'boolean', description: 'Return reference instead of full data. Default: false')]
+        bool $useRef = false
+    ): array {
+        // Fetch large dataset
+        $response = $this->fetchLargeData($query);
+
+        // Return reference if requested
+        if ($useRef) {
+            $ref = $this->storeRef($response);  // Store in Redis, get ref ID
+            return [
+                'ref' => $ref,
+                'type' => 'my_tool_response',
+                'preview' => $this->getRefPreview($response, limit: 3),
+                'metadata' => $this->getRefMetadata($response),
+                'ttl' => 900  // 15 minutes
+            ];
+        }
+
+        // Return full data
+        return $response;
+    }
+}
+```
+
+**RedisConnection methods:**
+- `storeRef(mixed $data, int $ttl = 900): string` - Store data, get reference ID
+- `getFromRef(string $ref): mixed` - Retrieve full data from reference
+- `getRefMetadata(mixed $data): array` - Get metadata (type, size, count)
+- `getRefPreview(mixed $data, int $limit = 3): array` - Get preview (first N items)
+- `refExists(string $ref): bool` - Check if reference exists
+
+### Reference Tools
+
+The `Reference.php` controller provides 7 tools for working with references:
+
+#### 1. `ref.inspect` - Preview Without Loading
+```php
+ref.inspect("ref:6758f3a2b1c42")
+// Returns: {ref, metadata: {type, size, count}, preview: [...], ttl: 843}
+```
+Use when: Need to see what's in a reference before loading full data.
+
+#### 2. `ref.get` - Load Full Data
+```php
+ref.get("ref:6758f3a2b1c42")
+// Returns: Complete dataset
+```
+Use when: Need complete data for final analysis or presentation.
+
+#### 3. `ref.sample` - Random Sample
+```php
+ref.sample("ref:6758f3a2b1c42", count: 20)
+// Returns: {sample: [...], total_count: 234, sampled_count: 20}
+```
+Use when: Preview isn't enough, need representative sample without full dataset.
+
+#### 4. `ref.filter` - Filter Dataset
+```php
+ref.filter("ref:6758f3a2b1c42", ".service == 'api'")
+// Returns: {ref: "ref:new", original_count: 234, filtered_count: 45, preview: [...]}
+```
+Use when: Need subset matching condition. Returns new reference with filtered data.
+
+**Filter conditions:**
+- `.field == "value"` - Exact match
+- `.field != "value"` - Not equal
+- `.field > 100` - Numeric comparison (>, <, >=, <=)
+- `.field contains "text"` - String contains
+
+#### 5. `ref.transform` - Transform Data
+```php
+ref.transform("ref:6758f3a2b1c42", ".[].error.message")
+// Returns: {ref: "ref:new", preview: [...], metadata: {...}}
+```
+Use when: Need to extract specific fields. Returns new reference with transformed data.
+
+**Transform expressions:**
+- `.` - Identity (no change)
+- `.field` - Extract field
+- `.[]` - Flatten array
+- `.[].field` - Extract field from each item
+- `.data` - Extract data field
+
+#### 6. `ref.exists` - Check Existence
+```php
+ref.exists("ref:6758f3a2b1c42")
+// Returns: {ref, exists: true, ttl: 843}
+```
+Use when: Need to verify reference is still valid before using.
+
+#### 7. `ref.delete` - Remove Reference
+```php
+ref.delete("ref:6758f3a2b1c42")
+// Returns: {ref, deleted: true}
+```
+Use when: Done with data, want to free memory early (optional - auto-expires after TTL).
+
+### Example Workflow
+
+**Scenario:** Investigate production errors using DataDog logs
+
+```php
+// 1. Search logs with reference (90% token reduction)
+$result = datadog.logs.search(
+    "service:api status:error",
+    "now-1h",
+    "now",
+    useRef: true
+);
+// Returns: {ref: "ref:abc123", preview: [log1, log2, log3], metadata: {count: 234}}
+
+// 2. Inspect preview to understand structure
+$inspect = ref.inspect("ref:abc123");
+// Returns: {metadata: {size: 45678, count: 234}, preview: [...], ttl: 900}
+
+// 3. Filter to specific error type
+$filtered = ref.filter("ref:abc123", ".error.message contains 'timeout'");
+// Returns: {ref: "ref:def456", filtered_count: 45, preview: [...]}
+
+// 4. Get sample for analysis
+$sample = ref.sample("ref:def456", count: 10);
+// Returns: {sample: [10 random logs], total_count: 45}
+
+// 5. Only load full data when needed
+$full = ref.get("ref:def456");
+// Returns: All 45 timeout errors
+```
+
+**Token usage comparison:**
+- Without refs: 234 logs × ~200 bytes each = 46KB per tool call
+- With refs: ref + preview = ~500 bytes per tool call
+- **Savings: 99% token reduction** until final `ref.get`
+
+### Reference ID Format
+
+References use format: `ref:{uniqid}`
+
+Examples:
+- `ref:6758f3a2b1c42`
+- `ref:6758f3a2b1c42.5d3e9f`
+
+**Properties:**
+- Unique across processes
+- Time-based (sortable)
+- Short (13-23 chars)
+- No collisions in practice
+
+### TTL (Time To Live)
+
+**Default:** 900 seconds (15 minutes)
+
+**Rationale:**
+- Long enough for multi-step workflows
+- Short enough to prevent memory bloat
+- Automatically cleaned up by Redis
+
+**Behavior:**
+- References expire after TTL
+- Expired refs return `ToolCallException: Reference not found or expired`
+- Check with `ref.exists` before using old refs
+
+### Controllers with Reference Support
+
+These controllers support `useRef` parameter:
+
+- **DataDog.php** - `datadog.logs.aggregate`, `datadog.logs.search`, `datadog.logs.compare_windows`
+- Future controllers can add support by using `RedisConnection` trait
+
+### Best Practices
+
+1. **Use refs by default** for tools returning large datasets (>10KB)
+2. **Inspect before loading** - always check preview/metadata first
+3. **Filter early** - reduce dataset size before loading full data
+4. **Pass refs between tools** - avoid loading intermediate results
+5. **Load only when needed** - use `ref.get` as final step before presentation
+6. **Check TTL** - verify ref exists if using after several minutes
+
+### Troubleshooting
+
+**Redis connection failed:**
+```bash
+# Check Redis is running
+docker ps | grep redis
+
+# Check Redis logs
+docker logs mcp-redis
+
+# Verify environment variables
+docker exec mcp-server env | grep REDIS
+```
+
+**Reference not found:**
+- Reference may have expired (TTL: 900 seconds)
+- Use `ref.exists` to check validity
+- Refetch data if needed
+
+**Predis not installed:**
+```bash
+# Rebuild container to install predis
+docker compose down
+docker compose up -d --build
+```
+
 ## Testing Tools
 
 After creating or modifying tools, verify functionality:
@@ -193,13 +463,16 @@ docker run -d --name mcp1 -p 8092:80 \
 
 ## Environment Variables
 
-| Variable         | Default                   | Description                    |
-|------------------|---------------------------|--------------------------------|
-| MCP_SERVER_NAME  | MCP Server                | server display name            |
-| MCP_SESSIONS_DIR | /app/storage/mcp-sessions | session storage path           |
-| APP_VERSION      | 0.0.0                     | version string                 |
-| APP_DEBUG        | false                     | enable debug logs (true/false) |
-| API_KEY          | -                         | api key for controllers        |
+| Variable         | Default                   | Description                          |
+|------------------|---------------------------|--------------------------------------|
+| MCP_SERVER_NAME  | MCP Server                | server display name                  |
+| MCP_SESSIONS_DIR | /app/storage/mcp-sessions | session storage path                 |
+| APP_VERSION      | 0.0.0                     | version string                       |
+| APP_DEBUG        | false                     | enable debug logs (true/false)       |
+| API_KEY          | -                         | api key for controllers              |
+| REDIS_HOST       | redis                     | Redis host (container name or IP)    |
+| REDIS_PORT       | 6379                      | Redis port                           |
+| REDIS_PASSWORD   | -                         | Redis password (optional)            |
 
 ## SDK Documentation
 
