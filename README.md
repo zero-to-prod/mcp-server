@@ -35,7 +35,7 @@ docker compose up -d
 
 **Option B: docker run**
 ```shell
-docker run -d --name mcp1 -p 8092:80 \
+docker run -d --name mcp1 -p 8093:80 \
   --env-file .env \
   -v $(pwd):/app/app/Http/Controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
@@ -45,7 +45,7 @@ docker run -d --name mcp1 -p 8092:80 \
 ### 4. Connect to Claude Desktop
 
 ```shell
-claude mcp add --transport http mcp1 http://localhost:8092
+claude mcp add --transport http mcp1 http://localhost:8093
 ```
 
 ## Docker Operations
@@ -453,7 +453,7 @@ docker compose up -d
 ### Manual configuration (without .env)
 
 ```shell
-docker run -d --name mcp1 -p 8092:80 \
+docker run -d --name mcp1 -p 8093:80 \
   -v $(pwd):/app/app/Http/Controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
   -e MCP_SERVER_NAME=mcp1 \

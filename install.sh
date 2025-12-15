@@ -5,7 +5,7 @@
 
 # Defaults
 DEFAULT_SERVER_NAME="mcp-server"
-DEFAULT_PORT="8092"
+DEFAULT_PORT="8093"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 AGENT_CMD="claude mcp add --transport http"
 

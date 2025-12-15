@@ -3,7 +3,7 @@ services:
     image: ${DOCKER_IMAGE:-davidsmith3/mcp-server:latest}
     container_name: ${MCP_SERVER_NAME:-mcp-server}
     ports:
-      - "${PORT:-8092}:80"
+      - "${PORT:-8093}:80"
     volumes:
       - .:/app/app/Http/Controllers
       - mcp-sessions:/app/storage/mcp-sessions
