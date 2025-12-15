@@ -139,12 +139,12 @@ main() {
     plain ""
 
     # Step 1: Initialize project
-    if [ -f .env.example ] || [ -f CLAUDE.md ]; then
+    if [ -f .env.example ] || [ -f README.md ]; then
         info "Found existing project files, skipping initialization"
     else
         plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
         if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-            success "Created: CLAUDE.md, RedisConnection.php, Reference.php, .env.example"
+            success "Created: README.md, RedisConnection.php, Reference.php, .env.example"
         else
             error "Failed to initialize project"
             exit 1
@@ -277,7 +277,7 @@ EOF
     fi
 
     plain ""
-    plain "Get started by providing the CLAUDE.md to your agent to build your own MCP tools!"
+    plain "Get started by providing the README.md to your agent to build your own MCP tools!"
     plain ""
     if [ "$START_SERVICES" != "yes" ]; then
         plain "Start services:"
