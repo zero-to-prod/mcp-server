@@ -139,28 +139,36 @@ main() {
     plain ""
 
     # Step 1: Initialize project
-    plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
-    if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-        success "Created: README.md, RedisConnection.php, Reference.php, .env.example"
+    if [ -f .env.example ] || [ -f README.md ]; then
+        info "Found existing project files, skipping initialization"
     else
-        error "Failed to initialize project"
-        exit 1
+        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
+        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
+            success "Created: README.md, RedisConnection.php, Reference.php, .env.example"
+        else
+            error "Failed to initialize project"
+            exit 1
+        fi
     fi
 
     # Step 2: Create .env file
-    plain "$ cp .env.example .env"
-    if [ -f .env.example ]; then
-        cp .env.example .env || {
-            error "Failed to copy .env.example"
-            exit 1
-        }
-        plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
-        sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
-        plain "$ sed 's/^PORT=.*/PORT=${PORT}/' .env"
-        sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
+    if [ -f .env ]; then
+        info "Found existing .env file, skipping creation"
+        plain "  To use new settings, delete .env and run install again"
     else
-        plain "$ cat > .env"
-        cat > .env <<EOF
+        plain "$ cp .env.example .env"
+        if [ -f .env.example ]; then
+            cp .env.example .env || {
+                error "Failed to copy .env.example"
+                exit 1
+            }
+            plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
+            sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
+            plain "$ sed 's/^PORT=.*/PORT=${PORT}/' .env"
+            sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
+        else
+            plain "$ cat > .env"
+            cat > .env <<EOF
 MCP_SERVER_NAME=${SERVER_NAME}
 APP_VERSION=0.0.0
 APP_DEBUG=false
@@ -169,12 +177,17 @@ MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 PORT=${PORT}
 DOCKER_IMAGE=${DEFAULT_IMAGE}
 EOF
+        fi
+        success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME}, PORT=${PORT})"
     fi
-    success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME}, PORT=${PORT})"
 
     # Step 3: Create docker-compose.yml
-    plain "$ cat > docker-compose.yml"
-    cat > docker-compose.yml <<EOF
+    if [ -f docker-compose.yml ]; then
+        info "Found existing docker-compose.yml, skipping creation"
+        plain "  To use new settings, delete docker-compose.yml and run install again"
+    else
+        plain "$ cat > docker-compose.yml"
+        cat > docker-compose.yml <<EOF
 services:
   mcp:
     image: \${DOCKER_IMAGE:-${DEFAULT_IMAGE}}
@@ -202,7 +215,8 @@ volumes:
   mcp-sessions:
   redis-data:
 EOF
-    success "Created: docker-compose.yml"
+        success "Created: docker-compose.yml"
+    fi
 
     # Step 4: Stop any existing containers
     if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}"; then
@@ -271,11 +285,6 @@ EOF
         plain "  ${COMPOSE_CMD} up -d"
         plain ""
     fi
-    plain "Manage services:"
-    plain "  ${COMPOSE_CMD} logs -f      # View logs"
-    plain "  ${COMPOSE_CMD} restart      # Restart services"
-    plain "  ${COMPOSE_CMD} down         # Stop services"
-    plain ""
 }
 
 # Run main function
