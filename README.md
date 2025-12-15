@@ -78,6 +78,21 @@ Each controller file is a self-contained plugin:
 - Each file operates independently
 - No cross-file references
 
+**CRITICAL: Where to create controller files**
+
+Create controller files **in the root of your project directory** (same directory as `.env` and `docker-compose.yml`), NOT in a `controllers/` subdirectory.
+
+Your project directory gets mounted as `/app/controllers` inside the Docker container.
+
+**Example project structure:**
+```
+your-project/
+  .env
+  docker-compose.yml
+  MyController.php    <- Create controllers here (root)
+  Redis.php           <- Create controllers here (root)
+```
+
 **File structure:**
 
 ```php
@@ -117,7 +132,7 @@ services:
     command: redis-server --appendonly yes
 ```
 
-### Redis Tools (controllers/Redis.php)
+### Redis Tools (Redis.php in your project root)
 
 **redis.inspect** - Get metadata + preview + TTL
 ```php
@@ -252,6 +267,7 @@ docker logs mcp1
 **Check syntax errors:**
 
 ```shell
+# Path inside Docker container (your root files are mounted to /app/controllers)
 docker exec mcp1 php -l /app/controllers/YourController.php
 ```
 
