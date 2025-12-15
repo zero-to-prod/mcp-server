@@ -45,16 +45,21 @@ prompt() {
 prompt_yn() {
     prompt_text="$1"
     var_name="$2"
+    default_value="${3:-no}"
 
     if [ -c /dev/tty ]; then
         printf '%s' "$prompt_text" > /dev/tty
         read -r input < /dev/tty
-        case "$input" in
-            [Yy]|[Yy][Ee][Ss]) eval "$var_name=yes" ;;
-            *) eval "$var_name=no" ;;
-        esac
+        if [ -z "$input" ]; then
+            eval "$var_name=\$default_value"
+        else
+            case "$input" in
+                [Yy]|[Yy][Ee][Ss]) eval "$var_name=yes" ;;
+                *) eval "$var_name=no" ;;
+            esac
+        fi
     else
-        eval "$var_name=no"
+        eval "$var_name=\$default_value"
     fi
 }
 
@@ -85,6 +90,19 @@ main() {
     if ! docker info >/dev/null 2>&1; then
         error "Docker daemon is not running. Please start Docker first."
         exit 1
+    fi
+
+    # Check Docker Compose
+    if ! command_exists docker-compose && ! docker compose version >/dev/null 2>&1; then
+        error "Docker Compose is not installed. Visit: https://docs.docker.com/compose/install/"
+        exit 1
+    fi
+
+    # Use docker compose (v2) if available, otherwise docker-compose (v1)
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD="docker compose"
+    else
+        COMPOSE_CMD="docker-compose"
     fi
 
     # Check Claude CLI
@@ -123,7 +141,7 @@ main() {
     # Step 1: Initialize project
     plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
     if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-        success "Created: README.md, Example.php, RedisConnection.php, Reference.php, .env.example"
+        success "Created: README.md, RedisConnection.php, Reference.php, .env.example"
     else
         error "Failed to initialize project"
         exit 1
@@ -136,8 +154,10 @@ main() {
             error "Failed to copy .env.example"
             exit 1
         }
-         plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
+        plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
         sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
+        plain "$ sed 's/^PORT=.*/PORT=${PORT}/' .env"
+        sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
     else
         plain "$ cat > .env"
         cat > .env <<EOF
@@ -146,42 +166,87 @@ APP_VERSION=0.0.0
 APP_DEBUG=false
 MCP_CONTROLLER_PATHS=controllers
 MCP_SESSIONS_DIR=/app/storage/mcp-sessions
+PORT=${PORT}
+DOCKER_IMAGE=${DEFAULT_IMAGE}
 EOF
     fi
-    success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME})"
+    success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME}, PORT=${PORT})"
 
-    # Step 3: Remove existing container if present
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}$"; then
-        plain "$ docker stop ${SERVER_NAME}"
-        docker stop "${SERVER_NAME}" >/dev/null 2>&1 || true
-        plain "$ docker rm ${SERVER_NAME}"
-        docker rm "${SERVER_NAME}" >/dev/null 2>&1 || true
-        info "Removed existing container: ${SERVER_NAME}"
+    # Step 3: Create docker-compose.yml
+    plain "$ cat > docker-compose.yml"
+    cat > docker-compose.yml <<EOF
+services:
+  mcp:
+    image: \${DOCKER_IMAGE:-${DEFAULT_IMAGE}}
+    container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}
+    ports:
+      - "\${PORT:-${PORT}}:80"
+    volumes:
+      - .:/app/app/Http/Controllers
+      - mcp-sessions:/app/storage/mcp-sessions
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mcp-sessions:
+  redis-data:
+EOF
+    success "Created: docker-compose.yml"
+
+    # Step 4: Stop any existing containers
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}"; then
+        plain "$ ${COMPOSE_CMD} down"
+        ${COMPOSE_CMD} down >/dev/null 2>&1 || true
+        info "Stopped existing containers"
     fi
 
-    # Step 4: Start server
-    plain "$ docker run -d --name ${SERVER_NAME} -p ${PORT}:80 --env-file .env \\"
-    plain "    -v \$(pwd):/app/app/Http/Controllers \\"
-    plain "    -v ${SERVER_NAME}-sessions:/app/storage/mcp-sessions \\"
-    plain "    ${DEFAULT_IMAGE}"
-
-    if docker run -d \
-        --name "${SERVER_NAME}" \
-        -p "${PORT}:80" \
-        --env-file .env \
-        -v "$(pwd):/app/app/Http/Controllers" \
-        -v "${SERVER_NAME}-sessions:/app/storage/mcp-sessions" \
-        "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
-        success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
-    else
-        error "Failed to start container"
-        exit 1
-    fi
-
-    # Step 5: Connect to Claude agents
+    # Step 5: Prompt to start services
     plain ""
-    if [ "$CLAUDE_AVAILABLE" = "yes" ] && [ -c /dev/tty ]; then
-        prompt_yn "Add to Claude agents? (y/N): " "ADD_TO_CLAUDE"
+    if [ -c /dev/tty ]; then
+        prompt_yn "Start services now? (Y/n): " "START_SERVICES" "yes"
+    else
+        # Non-interactive mode: default to yes
+        START_SERVICES="yes"
+        info "Starting services (default: yes in non-interactive mode)"
+    fi
+
+    if [ "$START_SERVICES" = "yes" ]; then
+        plain "$ ${COMPOSE_CMD} up -d"
+        if ${COMPOSE_CMD} up -d 2>&1; then
+            success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
+            success "Started: ${SERVER_NAME}-redis"
+        else
+            error "Failed to start services"
+            exit 1
+        fi
+    else
+        plain ""
+        info "To start services later, run:"
+        plain "  cd ${INSTALL_DIR}"
+        plain "  ${COMPOSE_CMD} up -d"
+    fi
+
+    # Step 6: Connect to Claude agents
+    plain ""
+    if [ "$CLAUDE_AVAILABLE" = "yes" ]; then
+        if [ -c /dev/tty ]; then
+            prompt_yn "Add to Claude agents? (Y/n): " "ADD_TO_CLAUDE" "yes"
+        else
+            # Non-interactive mode: default to yes
+            ADD_TO_CLAUDE="yes"
+            info "Adding to Claude agents (default: yes in non-interactive mode)"
+        fi
 
         if [ "$ADD_TO_CLAUDE" = "yes" ]; then
             plain "$ ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
@@ -192,9 +257,6 @@ EOF
                 plain "  Manually run: ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
             fi
         fi
-    elif [ "$CLAUDE_AVAILABLE" = "yes" ]; then
-        plain "To add to Claude agents, run:"
-        plain "  ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
     else
         plain "To add to Claude agents, install Claude CLI and run:"
         plain "  ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
@@ -202,6 +264,17 @@ EOF
 
     plain ""
     plain "Get started by providing the README.md to your agent to build your own MCP tools!"
+    plain ""
+    if [ "$START_SERVICES" != "yes" ]; then
+        plain "Start services:"
+        plain "  cd ${INSTALL_DIR}"
+        plain "  ${COMPOSE_CMD} up -d"
+        plain ""
+    fi
+    plain "Manage services:"
+    plain "  ${COMPOSE_CMD} logs -f      # View logs"
+    plain "  ${COMPOSE_CMD} restart      # Restart services"
+    plain "  ${COMPOSE_CMD} down         # Stop services"
     plain ""
 }
 

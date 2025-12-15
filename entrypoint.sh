@@ -14,34 +14,39 @@ if [ "$1" = "init" ]; then
     echo "Initializing MCP Server template files..."
     echo ""
 
-    if [ -f "/app/README.md" ]; then
+    if [ ! -f "$INIT_DIR/README.md" ] && [ -f "/app/README.md" ]; then
         cp /app/README.md "$INIT_DIR/README.md" 2>/dev/null || true
         echo "✓ Created README.md"
+    elif [ -f "$INIT_DIR/README.md" ]; then
+        echo "⊘ Skipped README.md (already exists)"
     fi
 
-    if [ -f "/app/Example.php" ]; then
-        cp /app/Example.php "$INIT_DIR/Example.php" 2>/dev/null || true
-        echo "✓ Created Example.php"
-    fi
-
-    if [ -f "/app/RedisConnection.php" ]; then
+    if [ ! -f "$INIT_DIR/RedisConnection.php" ] && [ -f "/app/RedisConnection.php" ]; then
         cp /app/RedisConnection.php "$INIT_DIR/RedisConnection.php" 2>/dev/null || true
         echo "✓ Created RedisConnection.php"
+    elif [ -f "$INIT_DIR/RedisConnection.php" ]; then
+        echo "⊘ Skipped RedisConnection.php (already exists)"
     fi
 
-    if [ -f "/app/Reference.php" ]; then
+    if [ ! -f "$INIT_DIR/Reference.php" ] && [ -f "/app/Reference.php" ]; then
         cp /app/Reference.php "$INIT_DIR/Reference.php" 2>/dev/null || true
         echo "✓ Created Reference.php"
+    elif [ -f "$INIT_DIR/Reference.php" ]; then
+        echo "⊘ Skipped Reference.php (already exists)"
     fi
 
-    if [ -f "/app/.env.example" ]; then
+    if [ ! -f "$INIT_DIR/.env.example" ] && [ -f "/app/.env.example" ]; then
         cp /app/.env.example "$INIT_DIR/.env.example" 2>/dev/null || true
         echo "✓ Created .env.example"
+    elif [ -f "$INIT_DIR/.env.example" ]; then
+        echo "⊘ Skipped .env.example (already exists)"
     fi
 
-    if [ -f "/app/docker-compose.template.yml" ]; then
+    if [ ! -f "$INIT_DIR/docker-compose.yml" ] && [ -f "/app/docker-compose.template.yml" ]; then
         cp /app/docker-compose.template.yml "$INIT_DIR/docker-compose.yml" 2>/dev/null || true
         echo "✓ Created docker-compose.yml"
+    elif [ -f "$INIT_DIR/docker-compose.yml" ]; then
+        echo "⊘ Skipped docker-compose.yml (already exists)"
     fi
 
     echo ""
@@ -76,13 +81,6 @@ echo ""
 if [ ! -f "$CONTROLLER_PATH/README.md" ] && [ -f "/app/README.md" ]; then
     if cp /app/README.md "$CONTROLLER_PATH/README.md" 2>/dev/null; then
         echo "Published README.md to mounted directory"
-        echo ""
-    fi
-fi
-
-if [ ! -f "$CONTROLLER_PATH/Example.php" ] && [ -f "/app/Example.php" ]; then
-    if cp /app/Example.php "$CONTROLLER_PATH/Example.php" 2>/dev/null; then
-        echo "Published Example.php to mounted directory"
         echo ""
     fi
 fi

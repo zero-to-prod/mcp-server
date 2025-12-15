@@ -35,7 +35,6 @@ RUN apk add --no-cache \
 
 COPY --chown=www-data:www-data public /app/public
 COPY --chown=www-data:www-data README.md /app/
-COPY --chown=www-data:www-data Example.php /app/
 COPY --chown=www-data:www-data RedisConnection.php /app/
 COPY --chown=www-data:www-data Reference.php /app/
 COPY --chown=www-data:www-data .env.example /app/
