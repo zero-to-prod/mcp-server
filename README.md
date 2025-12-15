@@ -103,6 +103,7 @@ declare(strict_types=1);
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
+use Mcp\Schema\ToolAnnotations;
 
 class PluginController {
     // All methods and dependencies in one file
@@ -366,7 +367,9 @@ class ControllerName {
         Explain what the tool does, its purpose, and any important behavior.
         Use clear, detailed explanations for LLM understanding.
         TEXT,
-    annotations: new ToolAnnotations(title: 'T', readOnlyHint: true)  // optional
+    annotations: new ToolAnnotations(
+        title: 'tool_name'  // MUST match name exactly
+    )
 )]
 public function method(
     #[Schema(
@@ -386,6 +389,8 @@ public function method(
 }
 ```
 
+**ToolAnnotations title:** MUST match the tool name exactly. Pattern: `title: 'service.noun.action'` matches `name: 'service.noun.action'`
+
 **Return types:** primitives, arrays, or explicit content objects (TextContent, ImageContent, AudioContent, EmbeddedResource)
 
 **Schema types:** `string` `number` `integer` `boolean` `array` `object` `null`
@@ -399,7 +404,10 @@ public function method(
         Divides two numbers and returns the result.
         Throws exception if divisor is zero.
         Returns floating point result for all division operations.
-        TEXT
+        TEXT,
+    annotations: new ToolAnnotations(
+        title: 'divide'
+    )
 )]
 public function divide(
     #[Schema(
@@ -739,7 +747,10 @@ string $param
     description: <<<TEXT
         Searches items with configurable sorting.
         Returns array of search results ordered by specified sort parameter.
-        TEXT
+        TEXT,
+    annotations: new ToolAnnotations(
+        title: 'search'
+    )
 )]
 public function search(
     #[Schema(
@@ -876,6 +887,7 @@ namespace App\Http\Controllers;
 
 use Mcp\Capability\Attribute\{McpTool, McpResource, McpResourceTemplate, McpPrompt, Schema};
 use Mcp\Exception\{ToolCallException, ResourceReadException, PromptGetException};
+use Mcp\Schema\ToolAnnotations;
 
 class Example {
     #[McpTool(
@@ -884,7 +896,10 @@ class Example {
             Processes data in the specified format.
             Validates input data and format parameter before processing.
             Returns processed result in requested format.
-            TEXT
+            TEXT,
+        annotations: new ToolAnnotations(
+            title: 'process'
+        )
     )]
     public function process(
         #[Schema(
