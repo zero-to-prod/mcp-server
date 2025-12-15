@@ -139,12 +139,12 @@ main() {
     plain ""
 
     # Step 1: Initialize project
-    if [ -f .env.example ] || [ -f README.md ]; then
+    if [ -f .env.example ] || [ -f "*.php" ]; then
         info "Found existing project files, skipping initialization"
     else
         plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
-        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-            success "Created: README.md, RedisConnection.php, Reference.php, .env.example"
+        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init; then
+            success "Initialized project with controllers and configuration files"
         else
             error "Failed to initialize project"
             exit 1
@@ -195,7 +195,7 @@ services:
     ports:
       - "\${PORT:-${PORT}}:80"
     volumes:
-      - .:/app/app/Http/Controllers
+      - .:/app/controllers
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env

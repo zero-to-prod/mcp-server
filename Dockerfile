@@ -29,14 +29,12 @@ RUN apk add --no-cache \
     php84-pecl-redis \
  && mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
-             /app/app/Http/Controllers \
+             /app/controllers \
  && chown -R www-data:www-data /app/storage \
- && chown -R www-data:www-data /app/app
+ && chown -R www-data:www-data /app/controllers
 
 COPY --chown=www-data:www-data public /app/public
-COPY --chown=www-data:www-data README.md /app/
-COPY --chown=www-data:www-data RedisConnection.php /app/
-COPY --chown=www-data:www-data Reference.php /app/
+COPY --chown=www-data:www-data controllers /app/controllers
 COPY --chown=www-data:www-data .env.example /app/
 COPY --chown=www-data:www-data docker-compose.template.yml /app/
 

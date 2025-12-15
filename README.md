@@ -37,7 +37,7 @@ docker compose up -d
 ```shell
 docker run -d --name mcp1 -p 8093:80 \
   --env-file .env \
-  -v $(pwd):/app/app/Http/Controllers \
+  -v $(pwd):/app/controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
   davidsmith3/mcp-server:latest
 ```
@@ -421,7 +421,7 @@ docker logs mcp1
 
 **Check syntax errors:**
 ```shell
-docker exec mcp1 php -l /app/app/Http/Controllers/YourController.php
+docker exec mcp1 php -l /app/controllers/YourController.php
 ```
 
 **Verify environment:**
@@ -454,7 +454,7 @@ docker compose up -d
 
 ```shell
 docker run -d --name mcp1 -p 8093:80 \
-  -v $(pwd):/app/app/Http/Controllers \
+  -v $(pwd):/app/controllers \
   -v mcp1-sessions:/app/storage/mcp-sessions \
   -e MCP_SERVER_NAME=mcp1 \
   -e APP_DEBUG=false \
@@ -1127,8 +1127,8 @@ class Example {
 
 ## Technical Details
 
-- **Controller path:** `/app/app/Http/Controllers` (mount target)
-- **Namespace:** optional (`App\Http\Controllers` or none)
+- **Controller path:** `/app/controllers` (mount target)
+- **Namespace:** optional (`Controllers` or none)
 - **Auto-load:** all `.php` files in controller path
 - **Transport:** StreamableHttpTransport (HTTP)
 - **Session:** FileSessionStore
@@ -1144,5 +1144,5 @@ On startup:
 4. Start FrankenPHP on port 80
 
 Mount requirements:
-- `-v <local-path>:/app/app/Http/Controllers` - controllers (required)
+- `-v <local-path>:/app/controllers` - controllers (required)
 - `-v <volume>:/app/storage/mcp-sessions` - sessions (optional, for persistence)

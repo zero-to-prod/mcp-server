@@ -27,7 +27,7 @@ The server uses the MCP SDK's attribute-based discovery system:
 ```php
 $controller_paths = !empty($_ENV['MCP_CONTROLLER_PATHS'])
     ? explode(':', $_ENV['MCP_CONTROLLER_PATHS'])
-    : ['controllers', 'app/Http/Controllers'];
+    : ['controllers'];
 
 Server::builder()
     ->setServerInfo($_ENV['MCP_SERVER_NAME'] ?? 'MCP Server', $_ENV['APP_VERSION'] ?? '0.0.0')
@@ -39,7 +39,7 @@ Server::builder()
 
 - **Discovery paths**: Colon-separated list in `MCP_CONTROLLER_PATHS` environment variable (default: `controllers`)
 - **Base path**: Project root directory
-- **Controllers namespace**: **Optional** - Can use `Controllers\`, `App\Http\Controllers`, or no namespace
+- **Controllers namespace**: **Optional** - Can use `Controllers\` or no namespace
 - **File session storage**: `FileSessionStore` with configurable directory
 - **Controller loading**: All PHP files in controller paths are automatically loaded with `require_once`
 
@@ -108,8 +108,8 @@ class ExampleController
 - `#[CompletionProvider]` - Auto-completion for dynamic parameters
 
 **Key Pattern Details**:
-- Controllers should use `Controllers\` namespace (or `App\Http\Controllers` for legacy support)
-- Place controller files in `/controllers` directory (or `/app/Http/Controllers` for legacy)
+- Controllers should use `Controllers\` namespace (or no namespace)
+- Place controller files in `/controllers` directory
 - Use `#[Schema]` attribute for parameter descriptions and validation
 - Tool return values are automatically wrapped in appropriate MCP content types
 - Throw `ToolCallException` for user-facing errors (other exceptions show generic messages)
@@ -317,8 +317,8 @@ This project uses the official **`mcp/sdk`** (v0.1.0) from `modelcontextprotocol
 
 ### Controller Development
 
-1. **Namespace**: **Optional** - Controllers can use `Controllers\` namespace, `App\Http\Controllers`, or no namespace at all
-2. **File location**: Place controllers in `/controllers` directory (or `/app/Http/Controllers` for legacy)
+1. **Namespace**: **Optional** - Controllers can use `Controllers\` namespace or no namespace at all
+2. **File location**: Place controllers in `/controllers` directory
 3. **Attribute discovery**: Use `#[McpTool]`, `#[McpResource]`, etc. for automatic registration
 4. **Parameter documentation**: Use `#[Schema]` for descriptions and validation
 5. **Error handling**: Throw specific exceptions (`ToolCallException`, `ResourceReadException`, `PromptGetException`) for user-facing errors
@@ -510,7 +510,7 @@ public function validateEmail(string $email): array {
 }
 ```
 
-For comprehensive examples, see `app/Http/Controllers/ErrorHandlingExamplesController.php`.
+For comprehensive examples, see `controllers/` for reference implementations.
 
 ### Docker Image Updates
 

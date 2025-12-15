@@ -4,6 +4,7 @@ set -e
 # Init mode: copy template files and exit
 if [ "$1" = "init" ]; then
     INIT_DIR="/init"
+    SOURCE_CONTROLLERS="/app/controllers"
 
     if [ ! -d "$INIT_DIR" ]; then
         echo "Error: /init directory not mounted"
@@ -14,25 +15,31 @@ if [ "$1" = "init" ]; then
     echo "Initializing MCP Server template files..."
     echo ""
 
-    if [ ! -f "$INIT_DIR/README.md" ] && [ -f "/app/README.md" ]; then
-        cp /app/README.md "$INIT_DIR/README.md" 2>/dev/null || true
-        echo "✓ Created README.md"
-    elif [ -f "$INIT_DIR/README.md" ]; then
-        echo "⊘ Skipped README.md (already exists)"
-    fi
+    # Copy all controller files from image controllers directory
+    if [ -d "$SOURCE_CONTROLLERS" ]; then
+        controller_files=$(find "$SOURCE_CONTROLLERS" -maxdepth 1 -type f -name "*.php" 2>/dev/null | wc -l)
+        copied_count=0
+        skipped_count=0
 
-    if [ ! -f "$INIT_DIR/RedisConnection.php" ] && [ -f "/app/RedisConnection.php" ]; then
-        cp /app/RedisConnection.php "$INIT_DIR/RedisConnection.php" 2>/dev/null || true
-        echo "✓ Created RedisConnection.php"
-    elif [ -f "$INIT_DIR/RedisConnection.php" ]; then
-        echo "⊘ Skipped RedisConnection.php (already exists)"
-    fi
+        for file in "$SOURCE_CONTROLLERS"/*.php; do
+            [ -f "$file" ] || continue
+            filename=$(basename "$file")
 
-    if [ ! -f "$INIT_DIR/Reference.php" ] && [ -f "/app/Reference.php" ]; then
-        cp /app/Reference.php "$INIT_DIR/Reference.php" 2>/dev/null || true
-        echo "✓ Created Reference.php"
-    elif [ -f "$INIT_DIR/Reference.php" ]; then
-        echo "⊘ Skipped Reference.php (already exists)"
+            if [ ! -f "$INIT_DIR/$filename" ]; then
+                if cp "$file" "$INIT_DIR/$filename" 2>/dev/null; then
+                    echo "✓ Created $filename"
+                    copied_count=$((copied_count + 1))
+                fi
+            else
+                echo "⊘ Skipped $filename (already exists)"
+                skipped_count=$((skipped_count + 1))
+            fi
+        done
+
+        if [ $controller_files -gt 0 ]; then
+            echo ""
+            echo "Controllers: $copied_count created, $skipped_count skipped"
+        fi
     fi
 
     if [ ! -f "$INIT_DIR/.env.example" ] && [ -f "/app/.env.example" ]; then
@@ -64,7 +71,7 @@ echo "Version: ${APP_VERSION:-0.0.0}"
 echo "Debug Mode: ${APP_DEBUG:-false}"
 echo ""
 
-CONTROLLER_PATH="/app/app/Http/Controllers"
+CONTROLLER_PATH="/app/controllers"
 
 if [ ! -d "$CONTROLLER_PATH" ]; then
     echo "   Controller path does not exist: $CONTROLLER_PATH"
@@ -74,37 +81,8 @@ fi
 
 controller_count=$(find "$CONTROLLER_PATH" -maxdepth 1 -name "*.php" 2>/dev/null | wc -l)
 tools_count=$(grep -r "#\[McpTool" "$CONTROLLER_PATH" 2>/dev/null | wc -l)
-echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: app/Http/Controllers"
+echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: controllers"
 echo ""
-
-
-if [ ! -f "$CONTROLLER_PATH/README.md" ] && [ -f "/app/README.md" ]; then
-    if cp /app/README.md "$CONTROLLER_PATH/README.md" 2>/dev/null; then
-        echo "Published README.md to mounted directory"
-        echo ""
-    fi
-fi
-
-if [ ! -f "$CONTROLLER_PATH/RedisConnection.php" ] && [ -f "/app/RedisConnection.php" ]; then
-    if cp /app/RedisConnection.php "$CONTROLLER_PATH/RedisConnection.php" 2>/dev/null; then
-        echo "Published RedisConnection.php to mounted directory"
-        echo ""
-    fi
-fi
-
-if [ ! -f "$CONTROLLER_PATH/Reference.php" ] && [ -f "/app/Reference.php" ]; then
-    if cp /app/Reference.php "$CONTROLLER_PATH/Reference.php" 2>/dev/null; then
-        echo "Published Reference.php to mounted directory"
-        echo ""
-    fi
-fi
-
-if [ ! -f "$CONTROLLER_PATH/.env.example" ] && [ -f "/app/.env.example" ]; then
-    if cp /app/.env.example "$CONTROLLER_PATH/.env.example" 2>/dev/null; then
-        echo "Published .env.example to mounted directory"
-        echo ""
-    fi
-fi
 
 if [ ! -d "$MCP_SESSIONS_DIR" ]; then
     echo "Creating sessions directory: $MCP_SESSIONS_DIR"

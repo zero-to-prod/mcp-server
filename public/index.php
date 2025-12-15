@@ -78,7 +78,7 @@ if (!is_dir(mcp_sessions_dir) && !mkdir(mcp_sessions_dir, 0755, true) && !is_dir
 
 $psr17Factory = new Psr17Factory();
 
-$controller_paths = ['app/Http/Controllers'];
+$controller_paths = ['controllers'];
 foreach ($controller_paths as $path) {
     $full_path = base_dir . '/' . $path;
     if (is_dir($full_path)) {
