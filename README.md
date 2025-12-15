@@ -391,6 +391,30 @@ public function method(
 
 **ToolAnnotations title:** MUST match the tool name exactly. Pattern: `title: 'service.noun.action'` matches `name: 'service.noun.action'`
 
+**CRITICAL: annotations placement**
+
+✅ **CORRECT:** Place `annotations` ONLY in `#[McpTool(...)]` at method level
+```php
+#[McpTool(
+    name: 'tool.name',
+    description: 'Description...',
+    annotations: new ToolAnnotations(title: 'tool.name')  // <- HERE
+)]
+public function method(
+    #[Schema(type: 'string', description: 'Description...')]  // <- NO annotations
+    string $param
+)
+```
+
+❌ **WRONG:** Never place `annotations` inside `#[Schema(...)]` for parameters
+```php
+#[Schema(
+    type: 'string',
+    description: 'Description...',
+    annotations: new ToolAnnotations(...)  // <- NEVER DO THIS
+)]
+```
+
 **Return types:** primitives, arrays, or explicit content objects (TextContent, ImageContent, AudioContent, EmbeddedResource)
 
 **Schema types:** `string` `number` `integer` `boolean` `array` `object` `null`
