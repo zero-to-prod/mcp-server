@@ -14,11 +14,11 @@ if [ "$1" = "init" ]; then
     echo "Initializing MCP Server template files..."
     echo ""
 
-    if [ ! -f "$INIT_DIR/README.md" ] && [ -f "/app/README.md" ]; then
-        cp /app/README.md "$INIT_DIR/README.md" 2>/dev/null || true
-        echo "✓ Created README.md"
-    elif [ -f "$INIT_DIR/README.md" ]; then
-        echo "⊘ Skipped README.md (already exists)"
+    if [ ! -f "$INIT_DIR/CLAUDE.md" ] && [ -f "/app/README.md" ]; then
+        cp /app/README.md "$INIT_DIR/CLAUDE.md" 2>/dev/null || true
+        echo "✓ Created CLAUDE.md"
+    elif [ -f "$INIT_DIR/CLAUDE.md" ]; then
+        echo "⊘ Skipped CLAUDE.md (already exists)"
     fi
 
     if [ ! -f "$INIT_DIR/RedisConnection.php" ] && [ -f "/app/RedisConnection.php" ]; then
@@ -78,9 +78,9 @@ echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: app/H
 echo ""
 
 
-if [ ! -f "$CONTROLLER_PATH/README.md" ] && [ -f "/app/README.md" ]; then
-    if cp /app/README.md "$CONTROLLER_PATH/README.md" 2>/dev/null; then
-        echo "Published README.md to mounted directory"
+if [ ! -f "$CONTROLLER_PATH/CLAUDE.md" ] && [ -f "/app/README.md" ]; then
+    if cp /app/README.md "$CONTROLLER_PATH/CLAUDE.md" 2>/dev/null; then
+        echo "Published CLAUDE.md to mounted directory"
         echo ""
     fi
 fi
