@@ -151,6 +151,20 @@ main() {
         fi
     fi
 
+    # Step 1.5: Ensure README.md is present
+    if [ ! -f README.md ]; then
+        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true'"
+        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true'; then
+            if [ -f README.md ]; then
+                success "Published: README.md"
+            else
+                info "README.md not available in image, skipping"
+            fi
+        fi
+    else
+        info "Found existing README.md, skipping"
+    fi
+
     # Step 2: Create .env file
     if [ -f .env ]; then
         info "Found existing .env file, skipping creation"
