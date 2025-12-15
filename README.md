@@ -5,6 +5,7 @@ PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, ex
 ## Quick Start
 
 **One-line install** (recommended):
+
 ```shell
 curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | bash
 ```
@@ -14,6 +15,7 @@ Or manually:
 ### 1. Initialize project directory
 
 Create template files (README.md, Example.php, .env.example):
+
 ```shell
 docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
 ```
@@ -29,17 +31,9 @@ cp .env.example .env
 ### 3. Start server
 
 **Option A: docker-compose** (recommended)
+
 ```shell
 docker compose up -d
-```
-
-**Option B: docker run**
-```shell
-docker run -d --name mcp1 -p 8093:80 \
-  --env-file .env \
-  -v $(pwd):/app/controllers \
-  -v mcp1-sessions:/app/storage/mcp-sessions \
-  davidsmith3/mcp-server:latest
 ```
 
 ### 4. Connect to Claude Desktop
@@ -53,12 +47,15 @@ claude mcp add --transport http mcp1 http://localhost:8093
 ### Restart after environment variable changes
 
 When adding or modifying environment variables in `.env`:
-```shell
-# docker-compose
-docker compose restart
 
-# docker run
-docker restart mcp1
+```shell
+docker compose down
+```
+
+Then restart:
+
+```shell
+docker compose up -d
 ```
 
 Environment variables only load at container startup. Any changes require restart.
@@ -74,12 +71,14 @@ The MCP client caches tool definitions. Reconnection forces discovery of changes
 ## Plugin Architecture
 
 Each controller file is a self-contained plugin:
+
 - No shared dependencies between files
 - Include all required imports in each file
 - Each file operates independently
 - No cross-file references
 
 **File structure:**
+
 ```php
 <?php
 declare(strict_types=1);
@@ -94,274 +93,97 @@ class PluginController {
 }
 ```
 
-## Redis Reference System
+## Redis Integration
 
-The Redis Reference system enables efficient token usage by storing large datasets in Redis and returning lightweight reference IDs instead of full data. This achieves **90%+ token reduction** while maintaining full observability through inspection tools.
+Access Redis directly via `Redis.php` controller. Provides 4 tools for key inspection and raw command execution.
 
-### Why Use References?
+### Setup
 
-**Problem:** Tools returning large responses (50KB logs, 1000 rows) consume massive tokens when passed between tools or presented to LLMs.
-
-**Solution:** Store data in Redis, return reference ID + metadata + preview (~500 bytes). LLM inspects preview, makes decisions, passes refs between tools - only loads full data when needed.
-
-**Benefits:**
-- 🚀 **Token reduction** (ref + preview vs full data)
-- 🧠 **Natural reasoning** (inspect → decide → act)
-- 🛠️ **Error recovery** (see preview, adjust strategy)
-- 🔍 **Full observability** (inspect any ref anytime)
-
-### Setup Requirements
-
-#### 1. Environment Configuration
-
-Redis configuration is included in `.env`:
+**Environment (.env):**
 ```bash
-REDIS_HOST=redis          # Redis container name (Docker) or localhost
-REDIS_PORT=6379           # Default Redis port
-REDIS_PASSWORD=           # Optional password
+REDIS_HOST=redis          # Container name or IP
+REDIS_PORT=6379
+REDIS_PASSWORD=           # Optional
 ```
 
-#### 2. Docker Compose
-
-Redis service is automatically included in `docker-compose.yml`:
+**Docker Compose (included by default):**
 ```yaml
 services:
   mcp:
-    depends_on:
-      - redis
-
+    depends_on: [redis]
   redis:
     image: redis:7-alpine
-    volumes:
-      - redis-data:/data
     command: redis-server --appendonly yes
 ```
 
-Start with: `docker compose up -d`
+### Redis Tools (controllers/Redis.php)
 
-### Using RedisConnection Trait
-
-Add Redis support to any controller:
-
+**redis.inspect** - Get metadata + preview + TTL
 ```php
-<?php
-declare(strict_types=1);
-namespace App\Http\Controllers;
-
-use Mcp\Capability\Attribute\{McpTool,Schema};
-
-class MyController
-{
-    use RedisConnection;  // Add this trait
-
-    #[McpTool(
-        name: 'my_tool',
-        description: 'Tool that returns reference instead of full data'
-    )]
-    public function myTool(
-        #[Schema(type: 'string', description: 'Query parameter')]
-        string $query,
-        #[Schema(type: 'boolean', description: 'Return reference instead of full data. Default: false')]
-        bool $useRef = false
-    ): array {
-        // Fetch large dataset
-        $response = $this->fetchLargeData($query);
-
-        // Return reference if requested
-        if ($useRef) {
-            $ref = $this->storeRef($response);  // Store in Redis, get ref ID
-            return [
-                'ref' => $ref,
-                'type' => 'my_tool_response',
-                'preview' => $this->getRefPreview($response, limit: 3),
-                'metadata' => $this->getRefMetadata($response),
-                'ttl' => 900  // 15 minutes
-            ];
-        }
-
-        // Return full data
-        return $response;
-    }
-}
+redis.inspect("mykey")  // Returns: {key, metadata: {type, size, count}, preview: [...], ttl}
 ```
+Use first to explore keys before loading full data. Shows structure without full load.
 
-**RedisConnection methods:**
-- `storeRef(mixed $data, int $ttl = 900): string` - Store data, get reference ID
-- `getFromRef(string $ref): mixed` - Retrieve full data from reference
-- `getRefMetadata(mixed $data): array` - Get metadata (type, size, count)
-- `getRefPreview(mixed $data, int $limit = 3): array` - Get preview (first N items)
-- `refExists(string $ref): bool` - Check if reference exists
-
-### Reference Tools
-
-The `Reference.php` controller provides 7 tools for working with references:
-
-#### 1. `ref.inspect` - Preview Without Loading
+**redis.get** - Retrieve full data from key
 ```php
-ref.inspect("ref:6758f3a2b1c42")
-// Returns: {ref, metadata: {type, size, count}, preview: [...], ttl: 843}
+redis.get("mykey")  // Returns: complete dataset
 ```
-Use when: Need to see what's in a reference before loading full data.
+Use after confirming data size via inspect. Loads all data into context.
 
-#### 2. `ref.get` - Load Full Data
+**redis.exists** - Check if key exists
 ```php
-ref.get("ref:6758f3a2b1c42")
-// Returns: Complete dataset
+redis.exists("mykey")  // Returns: {key, exists: bool, ttl: int|null}
 ```
-Use when: Need complete data for final analysis or presentation.
+Quick validation without loading data.
 
-#### 3. `ref.sample` - Random Sample
+**redis.command** - Execute raw Redis commands
 ```php
-ref.sample("ref:6758f3a2b1c42", count: 20)
-// Returns: {sample: [...], total_count: 234, sampled_count: 20}
+redis.command("KEYS ref:*")     // Find keys by pattern
+redis.command("SCAN 0 MATCH ref:* COUNT 100")  // Production-safe scanning
+redis.command("TTL mykey")      // Get time to live
 ```
-Use when: Preview isn't enough, need representative sample without full dataset.
+Direct pass-through to Redis server. Supports all Redis commands (GET, SET, KEYS, SCAN, HGET, LRANGE, etc.).
 
-#### 4. `ref.filter` - Filter Dataset
-```php
-ref.filter("ref:6758f3a2b1c42", ".service == 'api'")
-// Returns: {ref: "ref:new", original_count: 234, filtered_count: 45, preview: [...]}
-```
-Use when: Need subset matching condition. Returns new reference with filtered data.
+**WARNING:** Destructive commands (DEL, FLUSHDB) execute without confirmation.
 
-**Filter conditions:**
-- `.field == "value"` - Exact match
-- `.field != "value"` - Not equal
-- `.field > 100` - Numeric comparison (>, <, >=, <=)
-- `.field contains "text"` - String contains
+### Pattern
 
-#### 5. `ref.transform` - Transform Data
-```php
-ref.transform("ref:6758f3a2b1c42", ".[].error.message")
-// Returns: {ref: "ref:new", preview: [...], metadata: {...}}
-```
-Use when: Need to extract specific fields. Returns new reference with transformed data.
+Standard workflow: `redis.exists` → `redis.inspect` → `redis.get` (load full data last)
 
-**Transform expressions:**
-- `.` - Identity (no change)
-- `.field` - Extract field
-- `.[]` - Flatten array
-- `.[].field` - Extract field from each item
-- `.data` - Extract data field
+### Container Log Access
 
-#### 6. `ref.exists` - Check Existence
-```php
-ref.exists("ref:6758f3a2b1c42")
-// Returns: {ref, exists: true, ttl: 843}
-```
-Use when: Need to verify reference is still valid before using.
+Access container logs using Docker commands. Logs contain PHP errors, MCP server output, and application errors.
 
-#### 7. `ref.delete` - Remove Reference
-```php
-ref.delete("ref:6758f3a2b1c42")
-// Returns: {ref, deleted: true}
-```
-Use when: Done with data, want to free memory early (optional - auto-expires after TTL).
+#### Essential Commands
 
-### Example Workflow
+**Find container name:**
 
-**Scenario:** Investigate production errors using DataDog logs
-
-```php
-// 1. Search logs with reference (90% token reduction)
-$result = datadog.logs.search(
-    "service:api status:error",
-    "now-1h",
-    "now",
-    useRef: true
-);
-// Returns: {ref: "ref:abc123", preview: [log1, log2, log3], metadata: {count: 234}}
-
-// 2. Inspect preview to understand structure
-$inspect = ref.inspect("ref:abc123");
-// Returns: {metadata: {size: 45678, count: 234}, preview: [...], ttl: 900}
-
-// 3. Filter to specific error type
-$filtered = ref.filter("ref:abc123", ".error.message contains 'timeout'");
-// Returns: {ref: "ref:def456", filtered_count: 45, preview: [...]}
-
-// 4. Get sample for analysis
-$sample = ref.sample("ref:def456", count: 10);
-// Returns: {sample: [10 random logs], total_count: 45}
-
-// 5. Only load full data when needed
-$full = ref.get("ref:def456");
-// Returns: All 45 timeout errors
-```
-
-**Token usage comparison:**
-- Without refs: 234 logs × ~200 bytes each = 46KB per tool call
-- With refs: ref + preview = ~500 bytes per tool call
-- **Savings: 99% token reduction** until final `ref.get`
-
-### Reference ID Format
-
-References use format: `ref:{uniqid}`
-
-Examples:
-- `ref:6758f3a2b1c42`
-- `ref:6758f3a2b1c42.5d3e9f`
-
-**Properties:**
-- Unique across processes
-- Time-based (sortable)
-- Short (13-23 chars)
-- No collisions in practice
-
-### TTL (Time To Live)
-
-**Default:** 900 seconds (15 minutes)
-
-**Rationale:**
-- Long enough for multi-step workflows
-- Short enough to prevent memory bloat
-- Automatically cleaned up by Redis
-
-**Behavior:**
-- References expire after TTL
-- Expired refs return `ToolCallException: Reference not found or expired`
-- Check with `ref.exists` before using old refs
-
-### Controllers with Reference Support
-
-These controllers support `useRef` parameter:
-
-- **DataDog.php** - `datadog.logs.aggregate`, `datadog.logs.search`, `datadog.logs.compare_windows`
-- Future controllers can add support by using `RedisConnection` trait
-
-### Best Practices
-
-1. **Use refs by default** for tools returning large datasets (>10KB)
-2. **Inspect before loading** - always check preview/metadata first
-3. **Filter early** - reduce dataset size before loading full data
-4. **Pass refs between tools** - avoid loading intermediate results
-5. **Load only when needed** - use `ref.get` as final step before presentation
-6. **Check TTL** - verify ref exists if using after several minutes
-
-### Troubleshooting
-
-**Redis connection failed:**
 ```bash
-# Check Redis is running
-docker ps | grep redis
-
-# Check Redis logs
-docker logs mcp-redis
-
-# Verify environment variables
-docker exec mcp-server env | grep REDIS
+docker ps                                 # Running containers
+docker compose ps                         # Compose services
 ```
 
-**Reference not found:**
-- Reference may have expired (TTL: 900 seconds)
-- Use `ref.exists` to check validity
-- Refetch data if needed
+**View logs:**
 
-**Predis not installed:**
 ```bash
-# Rebuild container to install predis
-docker compose down
-docker compose up -d --build
+docker logs mcp-server --tail 200         # Last 200 lines
+docker logs -f mcp-server                 # Follow (real-time)
+docker logs mcp-server --since 1h         # Last hour
+docker compose logs mcp                   # Compose service
+```
+
+**Search and filter (pipe to grep, same as datadog):**
+
+```bash
+docker logs mcp-server 2>&1 | grep -i error
+docker logs mcp-server 2>&1 | grep "tool_name"
+```
+
+**Check environment:**
+
+```bash
+docker exec mcp-server env | grep MCP     # MCP config
+docker exec mcp-server env | grep REDIS   # Redis config
 ```
 
 ## Testing Tools
@@ -375,6 +197,7 @@ After creating or modifying tools, verify functionality:
 For Claude Code CLI users: Use the `/mcp` command to reconnect.
 
 ### 2. List available tools
+
 ```shell
 claude mcp inspect mcp1
 ```
@@ -382,11 +205,13 @@ claude mcp inspect mcp1
 Verify new tool appears in output with correct name and description.
 
 ### 3. Test tool execution
+
 ```shell
 claude mcp call mcp1 tool_name '{"param": "value"}'
 ```
 
 **Validation checklist:**
+
 - Tool executes without errors
 - Return value matches expected format
 - Error cases throw appropriate exceptions
@@ -395,18 +220,21 @@ claude mcp call mcp1 tool_name '{"param": "value"}'
 ### 4. Common test patterns
 
 **Test valid input:**
+
 ```shell
 claude mcp call mcp1 divide '{"a": 10, "b": 2}'
 # Expected: {"result": 5}
 ```
 
 **Test validation:**
+
 ```shell
 claude mcp call mcp1 divide '{"a": 10, "b": 0}'
 # Expected: ToolCallException: "cannot divide by zero"
 ```
 
 **Test missing parameters:**
+
 ```shell
 claude mcp call mcp1 divide '{"a": 10}'
 # Expected: Parameter validation error
@@ -415,70 +243,52 @@ claude mcp call mcp1 divide '{"a": 10}'
 ### 5. Debug failures
 
 **Check container logs:**
+
 ```shell
 docker logs mcp1
 ```
 
 **Check syntax errors:**
+
 ```shell
 docker exec mcp1 php -l /app/controllers/YourController.php
 ```
 
 **Verify environment:**
+
 ```shell
 docker exec mcp1 env | grep MCP
 ```
 
-## Advanced Usage
-
-### Multiple instances
-
-Each instance needs unique port and directory:
-```shell
-# Instance 1
-mkdir -p ~/mcp-servers/monitoring && cd ~/mcp-servers/monitoring
-docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
-cp .env.example .env
-# Edit .env: MCP_SERVER_NAME=monitoring, PORT=8081
-docker compose up -d
-
-# Instance 2
-mkdir -p ~/mcp-servers/weather && cd ~/mcp-servers/weather
-docker run --rm -v $(pwd):/init davidsmith3/mcp-server:latest init
-cp .env.example .env
-# Edit .env: MCP_SERVER_NAME=weather, PORT=8082
-docker compose up -d
-```
-
-### Manual configuration (without .env)
-
-```shell
-docker run -d --name mcp1 -p 8093:80 \
-  -v $(pwd):/app/controllers \
-  -v mcp1-sessions:/app/storage/mcp-sessions \
-  -e MCP_SERVER_NAME=mcp1 \
-  -e APP_DEBUG=false \
-  davidsmith3/mcp-server:latest
-```
-
 ## Environment Variables
 
-| Variable         | Default                   | Description                          |
-|------------------|---------------------------|--------------------------------------|
-| MCP_SERVER_NAME  | MCP Server                | server display name                  |
-| MCP_SESSIONS_DIR | /app/storage/mcp-sessions | session storage path                 |
-| APP_VERSION      | 0.0.0                     | version string                       |
-| APP_DEBUG        | false                     | enable debug logs (true/false)       |
-| API_KEY          | -                         | api key for controllers              |
-| REDIS_HOST       | redis                     | Redis host (container name or IP)    |
-| REDIS_PORT       | 6379                      | Redis port                           |
-| REDIS_PASSWORD   | -                         | Redis password (optional)            |
+Variables read by the server (public/index.php):
+
+| Variable        | Default    | Description                       | Used In            |
+|-----------------|------------|-----------------------------------|--------------------|
+| MCP_SERVER_NAME | MCP Server | Server display name               | index.php:92       |
+| APP_VERSION     | 0.0.0      | Version string                    | index.php:92       |
+| APP_DEBUG       | false      | Enable debug logs (true/false)    | index.php:29,55    |
+| REDIS_HOST      | redis      | Redis host (container name or IP) | Redis.php:18       |
+| REDIS_PORT      | 6379       | Redis port                        | Redis.php:19       |
+| REDIS_PASSWORD  | -          | Redis password (optional)         | Redis.php:20       |
+
+Additional variables in .env.example (not used in code):
+
+| Variable             | Note                                                  |
+|----------------------|-------------------------------------------------------|
+| MCP_CONTROLLER_PATHS | Hardcoded to `controllers` in index.php:81           |
+| MCP_SESSIONS_DIR     | Hardcoded to `storage/mcp-sessions` in index.php:8   |
+| API_KEY              | Available for controller use, not used by core        |
+| PORT                 | Docker-specific, used in docker-compose.yml           |
+| DOCKER_IMAGE         | Docker-specific, used in docker-compose.yml           |
 
 ## SDK Documentation
 
 **Official source:** https://github.com/modelcontextprotocol/php-sdk
 
 Reference the official PHP SDK repository for:
+
 - Latest API changes
 - Complete method signatures
 - Advanced configuration options
@@ -502,6 +312,7 @@ class ControllerName {
 ### 1. Tool (action/function)
 
 **Syntax:**
+
 ```php
 #[McpTool(
     name: 'tool_name',
@@ -525,7 +336,7 @@ public function method(
     )]
     TYPE $param
 ): RETURN_TYPE {
-    if (/* error */) throw new ToolCallException('error: details');
+    if (/* error */) {throw new ToolCallException('error: details');}
     return $result;
 }
 ```
@@ -535,6 +346,7 @@ public function method(
 **Schema types:** `string` `number` `integer` `boolean` `array` `object` `null`
 
 **Example:**
+
 ```php
 #[McpTool(
     name: 'divide',
@@ -565,13 +377,15 @@ public function divide(
     )]
     float $b
 ): float {
-    if ($b === 0.0) throw new ToolCallException('cannot divide by zero');
+    if ($b === 0.0) {throw new ToolCallException('cannot divide by zero');}
     return $a / $b;
 }
 ```
 
 ### 2. Resource (static data, fixed URI)
+
 **Syntax:**
+
 ```php
 #[McpResource(
     uri: 'scheme://path',                    // required, RFC 3986
@@ -584,7 +398,7 @@ public function divide(
     size: 1024                               // optional, bytes
 )]
 public function method(): mixed {
-    if (/* error */) throw new ResourceReadException('error: details');
+    if (/* error */) {throw new ResourceReadException('error: details');}
     return $data;
 }
 ```
@@ -594,6 +408,7 @@ public function method(): mixed {
 **Return types:** primitives, arrays, Stream, SplFileInfo, TextResourceContents, BlobResourceContents, `['text' => '...']`, `['blob' => 'base64...']`
 
 **Example:**
+
 ```php
 #[McpResource(
     uri: 'config://app/settings',
@@ -607,7 +422,7 @@ public function method(): mixed {
 )]
 public function getSettings(): array {
     $file = '/path/to/settings.json';
-    if (!file_exists($file)) throw new ResourceReadException("not found: {$file}");
+    if (!file_exists($file)) {throw new ResourceReadException("not found: {$file}");}
     return json_decode(file_get_contents($file), true);
 }
 ```
@@ -615,6 +430,7 @@ public function getSettings(): array {
 ### 3. Resource Template (dynamic data, variable URI)
 
 **Syntax:**
+
 ```php
 #[McpResourceTemplate(
     uriTemplate: 'scheme://path/{var}',      // required, RFC 6570
@@ -642,6 +458,7 @@ public function method(
 ```
 
 **Rules:**
+
 - URI format: RFC 6570 with `{variable}` placeholders
 - Variable names must match method parameter names exactly
 - Parameter order matters: variables passed in URI template order
@@ -649,6 +466,7 @@ public function method(
 - Return types: same as Resource (primitives, arrays, Stream, SplFileInfo, TextResourceContents, BlobResourceContents)
 
 **Example:**
+
 ```php
 #[McpResourceTemplate(
     uriTemplate: 'data://user/{userId}',
@@ -672,8 +490,8 @@ public function getUser(
     )]
     string $userId
 ): array {
-    if (!ctype_alnum($userId)) throw new ResourceReadException('userId must be alphanumeric');
-    if (!$user = $this->find($userId)) throw new ResourceReadException("not found: {$userId}");
+    if (!ctype_alnum($userId)) {throw new ResourceReadException('userId must be alphanumeric');}
+    if (!$user = $this->find($userId)) {throw new ResourceReadException("not found: {$userId}");}
     return $user;
 }
 ```
@@ -681,6 +499,7 @@ public function getUser(
 ### 4. Prompt (AI template generation)
 
 **Syntax:**
+
 ```php
 #[McpPrompt(
     name: 'name',                          // required
@@ -706,6 +525,7 @@ public function method(
 ```
 
 **Return formats:**
+
 1. Array with role+content: `[['role' => 'user', 'content' => ['type' => 'text', 'text' => '...']]]`
 2. Associative: `['user' => 'message', 'assistant' => 'response']`
 3. PromptMessage objects with Role enums
@@ -713,6 +533,7 @@ public function method(
 **Valid roles:** `user` (input/questions), `assistant` (responses/instructions)
 
 **Example:**
+
 ```php
 #[McpPrompt(
     name: 'review',
@@ -738,7 +559,7 @@ public function review(
     string $style = 'balanced'
 ): array {
     $valid = ['strict', 'balanced', 'lenient'];
-    if (!in_array($style, $valid, true)) throw new PromptGetException("invalid '{$style}': " . implode('|', $valid));
+    if (!in_array($style, $valid, true)) {throw new PromptGetException("invalid '{$style}': " . implode('|', $valid));}
     return [['role' => 'user', 'content' => ['type' => 'text', 'text' => "Review with {$style} style"]]];
 }
 ```
@@ -783,12 +604,14 @@ public function review(
 ```
 
 **Schema generation priority (highest to lowest):**
+
 1. `#[Schema(definition: [...])]` - complete JSON schema
 2. Parameter-level `#[Schema(...)]` attributes
 3. Method-level `#[Schema(...)]` attributes
 4. PHP type hints + docblocks
 
 **Examples:**
+
 ```php
 #[Schema(
     type: 'string',
@@ -848,6 +671,7 @@ string $username
 ### 6. Completion Provider (auto-completion)
 
 **Types:**
+
 ```php
 // 1. Value lists (static strings)
 #[CompletionProvider(['opt1', 'opt2', 'opt3'])]
@@ -863,6 +687,7 @@ string $param
 ```
 
 **Example:**
+
 ```php
 #[McpTool(
     name: 'search',
@@ -890,6 +715,7 @@ public function search(
 ### 7. Error Handling
 
 **Exceptions:**
+
 ```php
 use Mcp\Exception\ToolCallException;       // tools
 use Mcp\Exception\ResourceReadException;   // resources
@@ -899,6 +725,7 @@ use Mcp\Exception\PromptGetException;      // prompts
 **Message format:** `type error: details` (lowercase, concise)
 
 **Patterns:**
+
 ```php
 // empty
 if (empty($val)) throw new ToolCallException('param empty');
@@ -921,6 +748,7 @@ if (!preg_match('/pattern/', $val)) throw new ToolCallException('invalid format:
 ```
 
 **Validation order:**
+
 1. empty/null
 2. length/range
 3. format/pattern
@@ -929,6 +757,7 @@ if (!preg_match('/pattern/', $val)) throw new ToolCallException('invalid format:
 6. business logic
 
 **Generic exceptions (internal errors only):**
+
 ```php
 try {
     $db->connect();
@@ -1035,9 +864,9 @@ class Example {
         )]
         string $format = 'json'
     ): array {
-        if (empty($data)) throw new ToolCallException('data empty');
+        if (empty($data)) {throw new ToolCallException('data empty');}
         $valid = ['json', 'xml'];
-        if (!in_array($format, $valid, true)) throw new ToolCallException("invalid format '{$format}': " . implode('|', $valid));
+        if (!in_array($format, $valid, true)) {throw new ToolCallException("invalid format '{$format}': " . implode('|', $valid));}
         return ['result' => $this->processData($data, $format)];
     }
 
@@ -1076,9 +905,9 @@ class Example {
         )]
         string $id
     ): array {
-        if (empty($id)) throw new ResourceReadException('id empty');
-        if (!preg_match('/^[a-z0-9]+$/', $id)) throw new ResourceReadException('id must be alphanumeric lowercase');
-        if (!$item = $this->find($id)) throw new ResourceReadException("not found: {$id}");
+        if (empty($id)) {throw new ResourceReadException('id empty');}
+        if (!preg_match('/^[a-z0-9]+$/', $id)) {throw new ResourceReadException('id must be alphanumeric lowercase');}
+        if (!$item = $this->find($id)) {throw new ResourceReadException("not found: {$id}");}
         return $item;
     }
 
@@ -1105,7 +934,7 @@ class Example {
         string $depth = 'quick'
     ): array {
         $valid = ['quick', 'deep'];
-        if (!in_array($depth, $valid, true)) throw new PromptGetException("invalid '{$depth}': " . implode('|', $valid));
+        if (!in_array($depth, $valid, true)) {throw new PromptGetException("invalid '{$depth}': " . implode('|', $valid));}
         return [['role' => 'user', 'content' => ['type' => 'text', 'text' => "Analyze with {$depth} depth"]]];
     }
 
@@ -1138,11 +967,13 @@ class Example {
 ## Docker Behavior
 
 On startup:
+
 1. Create controller directory if missing
 2. Load all `.php` files from controller path
 3. Create session directory if missing
 4. Start FrankenPHP on port 80
 
 Mount requirements:
+
 - `-v <local-path>:/app/controllers` - controllers (required)
 - `-v <volume>:/app/storage/mcp-sessions` - sessions (optional, for persistence)
