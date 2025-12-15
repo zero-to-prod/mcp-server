@@ -44,29 +44,30 @@ claude mcp add --transport http mcp1 http://localhost:8093
 
 ## Docker Operations
 
-### Restart after environment variable changes
+### When environment variables change
 
 When adding or modifying environment variables in `.env`:
 
+**1. Restart Docker containers:**
 ```shell
-docker compose down
+docker compose down && docker compose up -d
 ```
 
-Then restart:
+**2. Reconnect MCP client:**
+- Prompt the user to manually reconnect using their MCP client
+- For Claude Code CLI users: Use the `/mcp` command
 
-```shell
-docker compose up -d
-```
+Environment variables only load at container startup. Changes require full restart.
 
-Environment variables only load at container startup. Any changes require restart.
+### When MCP tools change
 
-### Reconnect after tool changes
+When adding, removing, or modifying MCP tools (controller methods with `#[McpTool]`, `#[McpResource]`, etc.):
 
-When adding, removing, or modifying tools (controller methods with `#[McpTool]`, `#[McpResource]`, etc.), the MCP client must reconnect to discover changes.
+**No Docker restart needed.** Just reconnect MCP client:
+- Prompt the user to manually reconnect using their MCP client
+- For Claude Code CLI users: Use the `/mcp` command
 
-**Important:** There is no command line tool to trigger reconnection. The agent must prompt the user to manually reconnect using their MCP client (e.g., `/mcp` command in Claude Code CLI).
-
-The MCP client caches tool definitions. Reconnection forces discovery of changes.
+The MCP client caches tool definitions. Reconnection forces discovery without restarting containers.
 
 ## Plugin Architecture
 
