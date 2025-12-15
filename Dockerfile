@@ -37,6 +37,7 @@ COPY --chown=www-data:www-data public /app/public
 COPY --chown=www-data:www-data controllers /app/controllers
 COPY --chown=www-data:www-data .env.example /app/
 COPY --chown=www-data:www-data docker-compose.template.yml /app/
+COPY --chown=www-data:www-data README.md /app/
 
 EXPOSE 80
 
