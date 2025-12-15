@@ -109,6 +109,34 @@ class PluginController {
 }
 ```
 
+## Tool Naming Convention
+
+**All MCP tool names MUST follow: `service.noun.action`**
+
+- **service**: System being accessed (lowercase)
+- **noun**: Resource type, singular (lowercase)
+- **action**: Operation verb (lowercase)
+- **Separator**: Dots only (`.`)
+- **Multi-word parts**: Underscores within parts only (`by_id`, `awaiting_shipment`)
+
+**Pattern:** `service.noun.action`
+
+**Examples:**
+```
+✓ service.user.get
+✓ service.users.list
+✓ service.order.create
+✓ service.item.search_by_id
+✓ api.logs.aggregate
+
+✗ getUser              (missing service.noun)
+✗ service_user_get     (underscores not dots)
+✗ Service.User.Get     (not lowercase)
+✗ service.users.get    (plural noun for singular action)
+```
+
+**Action verbs:** `get` `list` `create` `update` `delete` `search` `calculate` `transform` `aggregate`
+
 ## Redis Integration
 
 Access Redis directly via `Redis.php` controller. Provides 4 tools for key inspection and raw command execution.
