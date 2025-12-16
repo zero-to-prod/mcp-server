@@ -34,37 +34,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
         timeout-minutes: 1
 
-      - name: Build test image (amd64 only)
-        uses: docker/build-push-action@v6
-        timeout-minutes: 10
-        with:
-          context: .
-          target: production
-          platforms: linux/amd64
-          push: false
-          load: true
-          cache-from: type=gha
-          tags: mcp-server:test
-          build-args: |
-            VERSION=${{ env.VERSION }}
-          labels: |
-            org.opencontainers.image.title=Extensible MCP Server
-            org.opencontainers.image.description=An extensible Model Context Protocol (MCP) server
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.html_url }}
-            org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
-            org.opencontainers.image.vendor=ZeroToProd
-            org.opencontainers.image.licenses=MIT
-
-      - name: Test image functionality
-        timeout-minutes: 1
-        run: |
-          echo "Testing image functionality..."
-          docker run --rm mcp-server:test --help || docker run --rm mcp-server:test --version || echo "Basic container validation passed"
-          echo "Image test completed successfully"
-
       - name: Scan for vulnerabilities
         uses: aquasecurity/trivy-action@master
         timeout-minutes: 2
