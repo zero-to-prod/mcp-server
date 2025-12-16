@@ -86,7 +86,7 @@ jobs:
 
       - name: Build and push multi-platform
         uses: docker/build-push-action@v6
-        timeout-minutes: 3
+        timeout-minutes: 15
         with:
           context: .
           target: production
