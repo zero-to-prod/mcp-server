@@ -83,13 +83,13 @@ jobs:
           username: davidsmith3
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push (amd64)
+      - name: Build and push multi-platform
         uses: docker/build-push-action@v6
-        timeout-minutes: 15
+        timeout-minutes: 45
         with:
           context: .
           target: production
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
