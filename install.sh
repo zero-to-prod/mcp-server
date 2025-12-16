@@ -7,6 +7,7 @@
 DEFAULT_SERVER_NAME="mcp-server"
 DEFAULT_PORT="8080"
 DEFAULT_REDIS_PORT="6379"
+DEFAULT_MONGODB_PORT="27017"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 AGENT_CMD="claude mcp add --transport http"
 
@@ -238,7 +239,28 @@ main() {
     CLAUDE_AVAILABLE="no"
     command_exists claude && CLAUDE_AVAILABLE="yes"
 
+    # Pull latest Docker image
+    plain ""
+    if [ -c /dev/tty ]; then
+        prompt_yn "Pull latest Docker image? (Y/n): " "PULL_IMAGE" "yes"
+    else
+        PULL_IMAGE="yes"
+        info "Pulling latest Docker image (default: yes in non-interactive mode)"
+    fi
+
+    if [ "$PULL_IMAGE" = "yes" ]; then
+        plain "$ docker pull ${DEFAULT_IMAGE}"
+        if docker pull "${DEFAULT_IMAGE}" 2>&1; then
+            success "Pulled latest image: ${DEFAULT_IMAGE}"
+        else
+            error "Failed to pull image. Continuing with local image..."
+        fi
+    else
+        info "Skipping image pull. Using local image if available."
+    fi
+
     # Interactive configuration
+    plain ""
     if [ -c /dev/tty ]; then
         plain "Configuration (press Enter for defaults):"
         plain ""
@@ -249,6 +271,7 @@ main() {
     prompt "Server name (${DEFAULT_SERVER_NAME}): " "$DEFAULT_SERVER_NAME" "SERVER_NAME"
     prompt_port "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
     prompt_port "Redis port (${DEFAULT_REDIS_PORT}): " "$DEFAULT_REDIS_PORT" "REDIS_PORT"
+    prompt_port "MongoDB port (${DEFAULT_MONGODB_PORT}): " "$DEFAULT_MONGODB_PORT" "MONGODB_PORT"
     prompt "Install directory (current: $(pwd)): " "" "CUSTOM_INSTALL_DIR"
 
     # Sanitize server name
@@ -356,6 +379,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - mongodb
 
   redis:
     image: redis:7-alpine
@@ -367,9 +391,19 @@ services:
     volumes:
       - redis-data:/data
 
+  mongodb:
+    image: mongo:8
+    container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-mongodb
+    ports:
+      - "${MONGODB_PORT}:27017"
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+
 volumes:
   mcp-sessions:
   redis-data:
+  mongodb-data:
 EOF
         success "Created: docker-compose.yml"
     fi
@@ -396,6 +430,7 @@ EOF
         if ${COMPOSE_CMD} up -d 2>&1; then
             success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
             success "Started: ${SERVER_NAME}-redis on localhost:${REDIS_PORT}"
+            success "Started: ${SERVER_NAME}-mongodb on localhost:${MONGODB_PORT}"
         else
             error "Failed to start services"
             exit 1

@@ -16,6 +16,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - mongodb
 
   dev:
     build:
@@ -36,6 +37,7 @@ services:
     command: frankenphp run --config /etc/frankenphp/Caddyfile
     depends_on:
       - redis
+      - mongodb
     profiles:
       - dev
 
@@ -58,6 +60,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - mongodb
     profiles:
       - prod
 
@@ -79,7 +82,17 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  mongodb:
+    image: mongo:8
+    container_name: mcp-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    restart: unless-stopped
+
 volumes:
   mcp-sessions:
   mcp-sessions-prod:
   redis-data:
+  mongodb-data:

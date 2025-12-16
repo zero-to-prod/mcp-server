@@ -3,7 +3,7 @@ FROM dunglas/frankenphp:1-php8.4-alpine AS build
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock /app/
 
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb
 
 FROM dunglas/frankenphp:1-php8.4-alpine AS production
 
@@ -27,6 +27,13 @@ RUN apk add --no-cache \
     sed \
     gawk \
     php84-pecl-redis \
+    $PHPIZE_DEPS \
+    openssl-dev \
+    cyrus-sasl-dev \
+    snappy-dev \
+ && pecl install mongodb \
+ && docker-php-ext-enable mongodb \
+ && apk del $PHPIZE_DEPS \
  && mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
              /app/controllers \

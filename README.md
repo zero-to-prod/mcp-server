@@ -10,6 +10,12 @@ PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, ex
 curl -fsSL https://raw.githubusercontent.com/zero-to-prod/mcp-server/main/install.sh | bash
 ```
 
+The installer will:
+- Pull the latest Docker image with MongoDB support
+- Create project files and configuration
+- Start Redis and MongoDB services
+- Configure the MCP server
+
 Or manually:
 
 ### 1. Initialize project directory
@@ -195,6 +201,113 @@ Direct pass-through to Redis server. Supports all Redis commands (GET, SET, KEYS
 
 Standard workflow: `redis.exists` → `redis.inspect` → `redis.get` (load full data last)
 
+## MongoDB Integration
+
+Access MongoDB directly via `Mongodb.php` controller. Provides 5 tools for document operations and aggregations.
+
+### Setup
+
+**Environment (.env):**
+```bash
+MONGODB_HOST=mongodb      # Container name or IP
+MONGODB_PORT=27017
+MONGODB_USERNAME=         # Optional
+MONGODB_PASSWORD=         # Optional
+```
+
+**Docker Compose (included by default):**
+```yaml
+services:
+  mcp:
+    depends_on: [redis, mongodb]
+  mongodb:
+    image: mongo:8
+    volumes:
+      - mongodb-data:/data/db
+```
+
+### MongoDB Tools (Mongodb.php in your project root)
+
+**mongodb.document.find** - Query documents in collection
+```php
+mongodb.document.find(
+  "mydb",
+  "users",
+  "{\"status\": \"active\", \"_limit\": 10}"
+)
+```
+Returns matching documents. Use `_limit` in query to limit results.
+
+**mongodb.document.insert** - Insert documents
+```php
+// Insert one
+mongodb.document.insert("mydb", "users", "{\"name\": \"John\", \"email\": \"john@example.com\"}")
+
+// Insert many
+mongodb.document.insert("mydb", "users", "[{\"name\": \"John\"}, {\"name\": \"Jane\"}]")
+```
+Supports single or bulk insert operations.
+
+**mongodb.document.update** - Update documents
+```php
+mongodb.document.update(
+  "mydb",
+  "users",
+  "{\"_id\": \"...\"}",
+  "{\"$set\": {\"status\": \"active\"}}"
+)
+```
+Update one or many documents with MongoDB update operators. Use `_multiple: true` in filter to update many.
+
+**mongodb.document.delete** - Delete documents
+```php
+// Delete one
+mongodb.document.delete("mydb", "users", "{\"_id\": \"...\"}")
+
+// Delete many
+mongodb.document.delete("mydb", "users", "{\"status\": \"archived\", \"_multiple\": true}")
+```
+Delete one or many documents matching filter criteria. Use `_multiple: true` for bulk deletion.
+
+**WARNING:** Delete operations are permanent.
+
+**mongodb.data.aggregate** - Run aggregation pipeline
+```php
+mongodb.data.aggregate(
+  "mydb",
+  "orders",
+  "[
+    {\"$match\": {\"status\": \"completed\"}},
+    {\"$group\": {\"_id\": \"$userId\", \"total\": {\"$sum\": \"$amount\"}}},
+    {\"$sort\": {\"total\": -1}},
+    {\"$limit\": 10}
+  ]"
+)
+```
+Execute complex data transformations and analytics using MongoDB's aggregation framework.
+
+### Authentication
+
+MongoDB authentication is optional. To enable:
+
+1. Set environment variables:
+```bash
+MONGODB_USERNAME=admin
+MONGODB_PASSWORD=secure_password
+```
+
+2. Restart services:
+```bash
+docker compose restart
+```
+
+### Pattern
+
+Standard workflow:
+1. Find documents: `mongodb.document.find` with query filters
+2. Modify data: `mongodb.document.insert`, `mongodb.document.update`, or `mongodb.document.delete`
+3. Analytics: `mongodb.data.aggregate` for complex queries and reporting
+
 ### Container Log Access
 
 Access container logs using Docker commands. Logs contain PHP errors, MCP server output, and application errors.
@@ -318,6 +431,10 @@ Variables read by the server (public/index.php):
 | REDIS_HOST      | redis      | Redis host (container name or IP) | Redis.php:18       |
 | REDIS_PORT      | 6379       | Redis port                        | Redis.php:19       |
 | REDIS_PASSWORD  | -          | Redis password (optional)         | Redis.php:20       |
+| MONGODB_HOST    | mongodb    | MongoDB host (container name or IP) | Mongodb.php:18   |
+| MONGODB_PORT    | 27017      | MongoDB port                      | Mongodb.php:19     |
+| MONGODB_USERNAME | -         | MongoDB username (optional)       | Mongodb.php:20     |
+| MONGODB_PASSWORD | -         | MongoDB password (optional)       | Mongodb.php:21     |
 
 Additional variables in .env.example (not used in code):
 
