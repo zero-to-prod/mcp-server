@@ -1,0 +1,25 @@
+# Trivy Ignore List
+# This file contains CVEs that are acknowledged but not currently fixable in our codebase.
+# These should be reviewed periodically and removed when FrankenPHP updates resolve them.
+
+# CVE-2025-44005 - Step CA Authorization Bypass in ACME and SCEP Provisioners
+# Severity: CRITICAL
+# Component: github.com/smallstep/certificates v0.28.4 (embedded in FrankenPHP)
+# Reason: This vulnerability affects ACME and SCEP provisioners in Step CA.
+#         Our application does not use Step CA, ACME provisioners, or SCEP.
+#         This is a transitive dependency in FrankenPHP that doesn't affect our use case.
+# Fixed in: FrankenPHP needs to update to certificates v0.29.0
+# Review date: 2025-12-16
+# TODO: Remove this ignore when FrankenPHP updates to a patched version
+CVE-2025-44005
+
+# CVE-2025-61729 - Go stdlib crypto/x509 excessive resource consumption
+# Severity: HIGH
+# Component: stdlib v1.25.4 (Go standard library in FrankenPHP binary)
+# Reason: This vulnerability affects host certificate validation error string printing.
+#         While this is in the Go stdlib, our application relies on FrankenPHP to update
+#         to a patched Go version (1.24.11 or 1.25.5).
+# Fixed in: FrankenPHP needs to rebuild with Go 1.24.11+ or 1.25.5+
+# Review date: 2025-12-16
+# TODO: Remove this ignore when FrankenPHP updates their Go version
+CVE-2025-61729
