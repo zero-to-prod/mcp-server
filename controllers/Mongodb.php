@@ -70,7 +70,7 @@ final class Mongodb
         Maps to: MongoDB find() operation
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'MongoDB Find Documents',
+            title: 'mongodb.document.find',
             readOnlyHint: true
         )
     )]
@@ -136,7 +136,7 @@ final class Mongodb
         Maps to: MongoDB insertOne() or insertMany() operations
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'MongoDB Insert Documents',
+            title: 'mongodb.document.insert',
             readOnlyHint: false
         )
     )]
@@ -217,7 +217,7 @@ final class Mongodb
         Maps to: MongoDB updateOne() or updateMany() operations
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'MongoDB Update Documents',
+            title: 'mongodb.document.update',
             readOnlyHint: false
         )
     )]
@@ -298,7 +298,7 @@ final class Mongodb
         Maps to: MongoDB deleteOne() or deleteMany() operations
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'MongoDB Delete Documents',
+            title: 'mongodb.document.delete',
             readOnlyHint: false
         )
     )]
@@ -376,7 +376,7 @@ final class Mongodb
         Maps to: MongoDB aggregate() operation
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'MongoDB Aggregation Pipeline',
+            title: 'mongodb.data.aggregate',
             readOnlyHint: true
         )
     )]
