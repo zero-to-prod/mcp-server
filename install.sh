@@ -399,6 +399,9 @@ services:
     restart: unless-stopped
     volumes:
       - mongodb-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=\${MONGODB_USERNAME:-}
+      - MONGO_INITDB_ROOT_PASSWORD=\${MONGODB_PASSWORD:-}
 
 volumes:
   mcp-sessions:
