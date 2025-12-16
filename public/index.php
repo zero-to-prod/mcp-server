@@ -97,7 +97,7 @@ $response = Server::builder()
     ->build()
     ->run(
         new StreamableHttpTransport(
-            new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory)->fromGlobals(),
+            (new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory))->fromGlobals(),
             logger: $logger
         )
     );

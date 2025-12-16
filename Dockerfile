@@ -1,11 +1,16 @@
-FROM dunglas/frankenphp:1-php8.4-alpine AS build
+FROM dunglas/frankenphp:1-php8.3-bookworm AS build
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git unzip \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock /app/
 
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb --ignore-platform-req=ext-redis
 
-FROM dunglas/frankenphp:1-php8.4-alpine AS production
+FROM dunglas/frankenphp:1-php8.3-bookworm AS production
 
 ARG VERSION=1.0.0
 ENV APP_VERSION=$VERSION
@@ -20,20 +25,18 @@ COPY --from=build /app/vendor /app/vendor
 
 COPY composer.json composer.lock /app/
 
-RUN apk add --no-cache \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
     jq \
-    grep \
-    coreutils \
-    sed \
-    gawk \
-    php84-pecl-redis \
     $PHPIZE_DEPS \
-    openssl-dev \
-    cyrus-sasl-dev \
-    snappy-dev \
- && pecl install mongodb \
- && docker-php-ext-enable mongodb \
- && apk del $PHPIZE_DEPS \
+    libssl-dev \
+    libsasl2-dev \
+    libsnappy-dev \
+ && pecl install redis mongodb \
+ && docker-php-ext-enable redis mongodb \
+ && apt-get purge -y --auto-remove $PHPIZE_DEPS \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
              /app/controllers \

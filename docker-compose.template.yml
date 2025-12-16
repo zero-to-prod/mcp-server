@@ -12,6 +12,7 @@ services:
     restart: unless-stopped
     depends_on:
       - redis
+      - mongodb
 
   redis:
     image: redis:7-alpine
@@ -23,6 +24,19 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  mongodb:
+    image: mongo:8
+    container_name: mcp-mongodb
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb-data:/data/db
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-}
+
 volumes:
   mcp-sessions:
   redis-data:
+  mongodb-data:
