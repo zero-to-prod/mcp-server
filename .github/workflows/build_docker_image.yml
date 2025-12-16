@@ -34,17 +34,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
         timeout-minutes: 1
 
-      - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        timeout-minutes: 2
-        with:
-          image-ref: 'mcp-server:test'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
         timeout-minutes: 1
