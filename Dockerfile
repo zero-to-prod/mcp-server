@@ -8,7 +8,7 @@ RUN apt-get update \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock /app/
 
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb --ignore-platform-req=ext-redis
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb
 
 FROM dunglas/frankenphp:1-php8.3-bookworm AS production
 
@@ -31,9 +31,8 @@ RUN apt-get update \
     $PHPIZE_DEPS \
     libssl-dev \
     libsasl2-dev \
-    libsnappy-dev \
- && pecl install redis mongodb \
- && docker-php-ext-enable redis mongodb \
+ && pecl install mongodb \
+ && docker-php-ext-enable mongodb \
  && apt-get purge -y --auto-remove $PHPIZE_DEPS \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
