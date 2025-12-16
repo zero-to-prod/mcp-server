@@ -328,6 +328,34 @@ main() {
         info "Found existing README.md, skipping"
     fi
 
+    # Step 1.6: Ensure Mongodb.php controller is present
+    if [ ! -f Mongodb.php ]; then
+        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true'"
+        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true'; then
+            if [ -f Mongodb.php ]; then
+                success "Published: Mongodb.php"
+            else
+                info "Mongodb.php not available in image, skipping"
+            fi
+        fi
+    else
+        info "Found existing Mongodb.php, skipping"
+    fi
+
+    # Step 1.7: Ensure Redis.php controller is present
+    if [ ! -f Redis.php ]; then
+        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true'"
+        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true'; then
+            if [ -f Redis.php ]; then
+                success "Published: Redis.php"
+            else
+                info "Redis.php not available in image, skipping"
+            fi
+        fi
+    else
+        info "Found existing Redis.php, skipping"
+    fi
+
     # Step 2: Create .env file
     if [ -f .env ]; then
         info "Found existing .env file, skipping creation"
