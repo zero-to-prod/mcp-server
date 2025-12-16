@@ -47,7 +47,6 @@ jobs:
           tags: mcp-server:test
           build-args: |
             VERSION=${{ env.VERSION }}
-            QEMU_CPU=max
           labels: |
             org.opencontainers.image.title=Extensible MCP Server
             org.opencontainers.image.description=An extensible Model Context Protocol (MCP) server
@@ -84,19 +83,18 @@ jobs:
           username: davidsmith3
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push multi-platform
+      - name: Build and push (amd64)
         uses: docker/build-push-action@v6
-        timeout-minutes: 30
+        timeout-minutes: 15
         with:
           context: .
           target: production
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             VERSION=${{ env.VERSION }}
-            QEMU_CPU=max
           tags: |
             davidsmith3/mcp-server:latest
             davidsmith3/mcp-server:${{ env.VERSION }}
