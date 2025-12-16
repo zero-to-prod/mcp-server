@@ -93,6 +93,7 @@ $response = Server::builder()
     ->setDiscovery(base_dir, $controller_paths)
     ->setSession(new FileSessionStore(mcp_sessions_dir))
     ->setLogger($logger)
+    ->setPaginationLimit(PHP_INT_MAX) // Disable pagination by setting to max int
     ->build()
     ->run(
         new StreamableHttpTransport(
