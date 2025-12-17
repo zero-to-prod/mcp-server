@@ -121,7 +121,7 @@ final class Redis
         Maps directly to: Redis GET command
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'Redis GET',
+            title: 'redis.get',
             readOnlyHint: true
         )
     )]
@@ -150,7 +150,7 @@ final class Redis
         More efficient than redis.get for exploration (returns preview only).
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'Redis Inspect',
+            title: 'redis.inspect',
             readOnlyHint: true
         )
     )]
@@ -180,8 +180,7 @@ final class Redis
         Maps to: Redis EXISTS + TTL commands
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'Redis EXISTS',
-            readOnlyHint: true
+            title: 'redis.exists'
         )
     )]
     public function exists(
@@ -218,8 +217,7 @@ final class Redis
         Direct pass-through to Redis server.
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'Redis Command',
-            readOnlyHint: false
+            title: 'redis.command'
         )
     )]
     public function command(
