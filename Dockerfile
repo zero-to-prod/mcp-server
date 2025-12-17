@@ -18,13 +18,7 @@ ENV MCP_SERVER_NAME="MCP Server"
 ENV MCP_SESSIONS_DIR="/app/storage/mcp-sessions"
 ENV APP_DEBUG="false"
 
-COPY Caddyfile /etc/frankenphp/Caddyfile
-COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
-
-COPY --from=build /app/vendor /app/vendor
-
-COPY composer.json composer.lock /app/
-
+# Install system dependencies and PHP extensions first (expensive, rarely changes)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     jq \
@@ -42,6 +36,15 @@ RUN apt-get update \
  && chown -R www-data:www-data /app/storage \
  && chown -R www-data:www-data /app/controllers
 
+# Copy vendor dependencies from build stage (changes when composer.lock changes)
+COPY --from=build /app/vendor /app/vendor
+
+# Copy configuration files (changes occasionally)
+COPY Caddyfile /etc/frankenphp/Caddyfile
+COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY composer.json composer.lock /app/
+
+# Copy application code last (changes frequently)
 COPY --chown=www-data:www-data public /app/public
 COPY --chown=www-data:www-data controllers /app/controllers
 COPY --chown=www-data:www-data .env.example /app/
