@@ -113,7 +113,7 @@ final class Redis
         WARNING: This loads full data into LLM context. Use sparingly.
         Prefer redis.inspect for exploration.
 
-        Use cases:
+        Use this to:
         - Final step before presenting to user
         - When you need complete dataset for analysis
         - After reducing dataset to small result set
@@ -126,7 +126,7 @@ final class Redis
         )
     )]
     public function get(
-        #[Schema(type: 'string', description: 'Redis key (e.g., "redis:ref:6758f3a2b1c42")')]
+        #[Schema(type: 'string', description: 'Redis key. Example: "redis:ref:6758f3a2b1c42"')]
         string $key
     ): mixed {
         return $this->getFromRefRedis($key);
@@ -135,19 +135,14 @@ final class Redis
     #[McpTool(
         name: 'redis.inspect',
         description: <<<TEXT
-        Redis GET with metadata and preview (composite operation).
+        Get metadata + preview + TTL for key (composite operation).
 
-        Combines Redis GET + TTL commands to return:
-        - Metadata (type, size, count)
-        - Preview (first 3 items)
-        - TTL (time to live in seconds)
+        USE: Exploration before full load, check size/structure/expiration, verify key exists
+        DO NOT USE: When you need full data (use redis.get instead)
 
-        Use this to:
-        - See what's in a key before loading full data
-        - Check data size and structure
-        - Verify key exists and check expiration
+        RETURNS: Metadata (type/size/count), preview (first 3 items), TTL (seconds)
 
-        More efficient than redis.get for exploration (returns preview only).
+        Maps to: Redis GET + TTL commands
         TEXT,
         annotations: new ToolAnnotations(
             title: 'redis.inspect',
@@ -155,7 +150,7 @@ final class Redis
         )
     )]
     public function inspect(
-        #[Schema(type: 'string', description: 'Redis key (e.g., "redis:ref:6758f3a2b1c42")')]
+        #[Schema(type: 'string', description: 'Redis key. Example: "redis:ref:6758f3a2b1c42"')]
         string $key
     ): array {
         $data = $this->getFromRefRedis($key);
@@ -171,11 +166,9 @@ final class Redis
     #[McpTool(
         name: 'redis.exists',
         description: <<<TEXT
-        Redis EXISTS command - check if key exists and get TTL.
+        Check if key exists and get TTL.
 
-        Returns:
-        - exists: boolean indicating if key exists
-        - ttl: time to live in seconds (null if key doesn't exist)
+        RETURNS: exists (boolean), ttl (seconds or null if key doesn't exist)
 
         Maps to: Redis EXISTS + TTL commands
         TEXT,
@@ -184,7 +177,7 @@ final class Redis
         )
     )]
     public function exists(
-        #[Schema(type: 'string', description: 'Redis key to check')]
+        #[Schema(type: 'string', description: 'Redis key. Example: "redis:ref:6758f3a2b1c42"')]
         string $key
     ): array {
         $exists = $this->refExistsRedis($key);
@@ -221,14 +214,7 @@ final class Redis
         )
     )]
     public function command(
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            Raw Redis command string.
-            Format: "COMMAND arg1 arg2 arg3"
-            Example: "GET mykey", "KEYS ref:*", "TTL mykey"
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'Redis command string. Format: "COMMAND arg1 arg2 ...". Example: "GET mykey"')]
         string $command
     ): array {
         if (empty(trim($command))) {

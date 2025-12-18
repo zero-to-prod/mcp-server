@@ -52,43 +52,20 @@ final class Mongodb
 
     #[McpTool(
         name: 'mongodb.document.find',
-        description: <<<TEXT
-        Find documents in a MongoDB collection.
-
-        Queries documents using MongoDB query syntax and returns matching results.
-
-        Examples:
-        - Find all: "{}"
-        - Find by field: "{\"status\": \"active\"}"
-        - With limit: "{\"status\": \"active\", \"_limit\": 10}"
-
-        Use this for:
-        - Retrieving documents by criteria
-        - Listing collection contents
-        - Searching and filtering data
-
-        Maps to: MongoDB find() operation
-        TEXT,
+        description: 'Find documents in collection. USE: retrieving, searching, filtering. Maps to: MongoDB find()',
         annotations: new ToolAnnotations(
             title: 'mongodb.document.find',
             readOnlyHint: true
         )
     )]
     public function find(
-        #[Schema(type: 'string', description: 'Database name (e.g., "myapp", "production")')]
+        #[Schema(type: 'string', description: 'Database name')]
         string $database,
 
-        #[Schema(type: 'string', description: 'Collection name (e.g., "users", "products")')]
+        #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded query filter.
-            Example: "{\"status\": \"active\"}"
-            Use "_limit" for limiting results: "{\"_limit\": 10}"
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded query filter. Optional "_limit" for result limit. Example: "{\"status\": \"active\", \"_limit\": 10}"')]
         string $query = '{}'
     ): array {
         try {
@@ -119,22 +96,7 @@ final class Mongodb
 
     #[McpTool(
         name: 'mongodb.document.insert',
-        description: <<<TEXT
-        Insert one or more documents into a MongoDB collection.
-
-        Supports single document or bulk insert operations.
-
-        Examples:
-        - Insert one: "{\"name\": \"John\", \"email\": \"john@example.com\"}"
-        - Insert many: "[{\"name\": \"John\"}, {\"name\": \"Jane\"}]"
-
-        Use this for:
-        - Creating new documents
-        - Bulk data insertion
-        - Seeding collections
-
-        Maps to: MongoDB insertOne() or insertMany() operations
-        TEXT,
+        description: 'Insert one or more documents into a MongoDB collection. Supports single document or bulk insert operations. Maps to: MongoDB insertOne() or insertMany() operations',
         annotations: new ToolAnnotations(
             title: 'mongodb.document.insert',
             readOnlyHint: false
@@ -147,14 +109,7 @@ final class Mongodb
         #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded document or array of documents.
-            Single: "{\"field\": \"value\"}"
-            Multiple: "[{\"field\": \"value\"}, {\"field\": \"value\"}]"
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded document or array of documents. Format: single "{\"field\": \"value\"}" or multiple "[{...}, {...}]". Example: "[{\"name\": \"John\"}, {\"name\": \"Jane\"}]"')]
         string $document
     ): array {
         try {
@@ -200,22 +155,7 @@ final class Mongodb
 
     #[McpTool(
         name: 'mongodb.document.update',
-        description: <<<TEXT
-        Update documents in a MongoDB collection.
-
-        Uses MongoDB update operators to modify documents.
-
-        Examples:
-        - Update field: filter="{\"_id\": \"...\"}" update="{\"\$set\": {\"status\": \"active\"}}"
-        - Increment value: update="{\"\$inc\": {\"count\": 1}}"
-
-        Use this for:
-        - Modifying existing documents
-        - Updating fields with operators
-        - Conditional updates
-
-        Maps to: MongoDB updateOne() or updateMany() operations
-        TEXT,
+        description: 'Update documents in a MongoDB collection. Uses MongoDB update operators to modify documents. Maps to: MongoDB updateOne() or updateMany() operations',
         annotations: new ToolAnnotations(
             title: 'mongodb.document.update',
             readOnlyHint: false
@@ -228,23 +168,10 @@ final class Mongodb
         #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded filter to match documents.
-            Example: "{\"_id\": \"...\"}" or "{\"status\": \"pending\"}"
-            Use "_multiple": true to update many documents
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded filter to match documents. Optional "_multiple": true for updateMany. Example: "{\"_id\": \"...\", \"_multiple\": true}"')]
         string $filter,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded update operations using \$ operators.
-            Example: "{\"\$set\": {\"status\": \"active\"}}"
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded update operations using $ operators. Example: "{\"\$set\": {\"status\": \"active\"}}"')]
         string $update
     ): array {
         try {
@@ -279,24 +206,7 @@ final class Mongodb
 
     #[McpTool(
         name: 'mongodb.document.delete',
-        description: <<<TEXT
-        Delete documents from a MongoDB collection.
-
-        Removes one or multiple documents matching a filter.
-
-        Examples:
-        - Delete one: "{\"_id\": \"...\"}"
-        - Delete many: "{\"status\": \"archived\", \"_multiple\": true}"
-
-        Use this for:
-        - Removing specific documents
-        - Bulk deletion by criteria
-        - Cleaning up data
-
-        WARNING: Delete operations are permanent.
-
-        Maps to: MongoDB deleteOne() or deleteMany() operations
-        TEXT,
+        description: 'Delete documents from a MongoDB collection. Removes one or multiple documents matching a filter. WARNING: Delete operations are permanent. Maps to: MongoDB deleteOne() or deleteMany() operations',
         annotations: new ToolAnnotations(
             title: 'mongodb.document.delete',
             readOnlyHint: false
@@ -309,14 +219,7 @@ final class Mongodb
         #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded filter to match documents.
-            Example: "{\"_id\": \"...\"}"
-            Use "_multiple": true to delete many documents
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded filter to match documents. Optional "_multiple": true for deleteMany. Example: "{\"status\": \"archived\", \"_multiple\": true}"')]
         string $filter
     ): array {
         try {
@@ -349,32 +252,7 @@ final class Mongodb
 
     #[McpTool(
         name: 'mongodb.data.aggregate',
-        description: <<<TEXT
-        Run aggregation pipeline on a MongoDB collection.
-
-        Execute data transformations using MongoDB's aggregation framework.
-
-        Pipeline stages:
-        - \$match: Filter documents
-        - \$group: Group and aggregate
-        - \$sort: Sort results
-        - \$limit: Limit results
-        - \$project: Shape output
-
-        Example:
-        "[
-          {\"\$match\": {\"status\": \"completed\"}},
-          {\"\$group\": {\"_id\": \"\$userId\", \"total\": {\"\$sum\": \"\$amount\"}}},
-          {\"\$sort\": {\"total\": -1}}
-        ]"
-
-        Use this for:
-        - Complex queries and transformations
-        - Data analytics and reporting
-        - Computing aggregates
-
-        Maps to: MongoDB aggregate() operation
-        TEXT,
+        description: 'Run aggregation pipeline on a MongoDB collection. Execute data transformations using MongoDB\'s aggregation framework. Pipeline stages: $match: Filter documents, $group: Group and aggregate, $sort: Sort results, $limit: Limit results, $project: Shape output. USE: complex queries, analytics, computing aggregates. Maps to: MongoDB aggregate() operation',
         annotations: new ToolAnnotations(
             title: 'mongodb.data.aggregate',
             readOnlyHint: true
@@ -387,13 +265,7 @@ final class Mongodb
         #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(
-            type: 'string',
-            description: <<<TEXT
-            JSON-encoded aggregation pipeline (array of stage objects).
-            Example: "[{\"\$match\": {\"status\": \"active\"}}]"
-            TEXT
-        )]
+        #[Schema(type: 'string', description: 'JSON-encoded aggregation pipeline array of stage objects. Example: "[{\"\$match\": {\"status\": \"active\"}}, {\"\$group\": {\"_id\": \"\$userId\"}}]"')]
         string $pipeline
     ): array {
         try {

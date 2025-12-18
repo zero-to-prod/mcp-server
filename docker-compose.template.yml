@@ -16,9 +16,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: mcp-redis
+    container_name: ${MCP_SERVER_NAME:-mcp}-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
 
   mongodb:
     image: mongo:8
-    container_name: mcp-mongodb
+    container_name: ${MCP_SERVER_NAME:-mcp}-mongodb
     ports:
       - "${MONGODB_PORT:-27017}:27017"
     volumes:

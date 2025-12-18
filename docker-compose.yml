@@ -1,7 +1,7 @@
 services:
   mcp:
     image: ${DOCKER_IMAGE:-davidsmith3/mcp-server:latest}
-    container_name: mcp-server
+    container_name: ${MCP_SERVER_NAME:-mcp-server}
     ports:
       - "${PORT:-8081}:80"
     volumes:
@@ -74,9 +74,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: mcp-redis
+    container_name: ${MCP_SERVER_NAME:-mcp}-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -84,12 +84,15 @@ services:
 
   mongodb:
     image: mongo:8
-    container_name: mcp-mongodb
+    container_name: ${MCP_SERVER_NAME:-mcp}-mongodb
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27017}:27017"
     volumes:
       - mongodb-data:/data/db
     restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-}
 
 volumes:
   mcp-sessions:
