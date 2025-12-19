@@ -429,6 +429,7 @@ EOF
     plain "    }"
     plain ""
     plain "Instruct your agent to use README.md to build your first MCP tool!"
+    plain ""
 }
 
 # Run main function
