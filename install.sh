@@ -138,6 +138,24 @@ is_port_in_use() {
     fi
 }
 
+# Find next available port starting from given port
+find_available_port() {
+    start_port="$1"
+    port="$start_port"
+
+    while [ "$port" -le 65535 ]; do
+        if ! is_port_in_use "$port"; then
+            printf '%s' "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+
+    # Fallback to default if no port found
+    printf '%s' "$start_port"
+    return 1
+}
+
 # Prompt for port with availability check
 prompt_port() {
     prompt_text="$1"
@@ -207,10 +225,6 @@ prompt_port() {
 
 # Main installation
 main() {
-    plain ""
-    info "MCP Server Installation"
-    plain ""
-
     # Check Docker
     if ! command_exists docker; then
         error "Docker is not installed. Visit: https://docs.docker.com/get-docker/"
@@ -239,76 +253,31 @@ main() {
     CLAUDE_AVAILABLE="no"
     command_exists claude && CLAUDE_AVAILABLE="yes"
 
-    # Pull latest Docker image
-    plain ""
-    if [ -c /dev/tty ]; then
-        prompt_yn "Pull latest Docker image? (Y/n): " "PULL_IMAGE" "yes"
+    # Pull latest Docker image (silent)
+    if docker pull "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
+        : # Silent success
     else
-        PULL_IMAGE="yes"
-        info "Pulling latest Docker image (default: yes in non-interactive mode)"
+        error "Failed to pull image. Continuing with local image..."
     fi
 
-    if [ "$PULL_IMAGE" = "yes" ]; then
-        plain "$ docker pull ${DEFAULT_IMAGE}"
-        if docker pull "${DEFAULT_IMAGE}" 2>&1; then
-            success "Pulled latest image: ${DEFAULT_IMAGE}"
-        else
-            error "Failed to pull image. Continuing with local image..."
-        fi
-    else
-        info "Skipping image pull. Using local image if available."
-    fi
-
-    # Interactive configuration
-    plain ""
-    if [ -c /dev/tty ]; then
-        plain "Configuration (press Enter for defaults):"
-        plain ""
-    else
-        info "Running in non-interactive mode, using defaults"
-    fi
-
-    prompt "Server name (${DEFAULT_SERVER_NAME}): " "$DEFAULT_SERVER_NAME" "SERVER_NAME"
-    prompt_port "Port (${DEFAULT_PORT}): " "$DEFAULT_PORT" "PORT"
-    prompt_port "Redis port (${DEFAULT_REDIS_PORT}): " "$DEFAULT_REDIS_PORT" "REDIS_PORT"
-    prompt_port "MongoDB port (${DEFAULT_MONGODB_PORT}): " "$DEFAULT_MONGODB_PORT" "MONGODB_PORT"
-    prompt "Install directory (current: $(pwd)): " "" "CUSTOM_INSTALL_DIR"
-
-    # Sanitize server name
+    # Auto-configuration (silent)
+    # Server name from current directory
+    SERVER_NAME=$(basename "$(pwd)")
     SERVER_NAME=$(sanitize_server_name "$SERVER_NAME")
     if [ -z "$SERVER_NAME" ]; then
-        error "Invalid server name. Using default: ${DEFAULT_SERVER_NAME}"
         SERVER_NAME="$DEFAULT_SERVER_NAME"
     fi
 
-    # Sanitize install directory
-    CUSTOM_INSTALL_DIR=$(sanitize_path "$CUSTOM_INSTALL_DIR")
-
-    # Change directory if specified
-    if [ -n "$CUSTOM_INSTALL_DIR" ]; then
-        mkdir -p "$CUSTOM_INSTALL_DIR" || {
-            error "Failed to create directory: $CUSTOM_INSTALL_DIR"
-            exit 1
-        }
-        cd "$CUSTOM_INSTALL_DIR" || {
-            error "Failed to change to directory: $CUSTOM_INSTALL_DIR"
-            exit 1
-        }
-    fi
+    # Auto-resolve ports
+    PORT=$(find_available_port "$DEFAULT_PORT")
+    REDIS_PORT=$(find_available_port "$DEFAULT_REDIS_PORT")
+    MONGODB_PORT=$(find_available_port "$DEFAULT_MONGODB_PORT")
 
     INSTALL_DIR="$(pwd)"
-    plain ""
-    info "Installing to: ${INSTALL_DIR}"
-    plain ""
 
     # Step 1: Initialize project
-    if [ -f .env.example ] || [ -f "*.php" ]; then
-        info "Found existing project files, skipping initialization"
-    else
-        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} init"
-        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init; then
-            success "Initialized project with controllers and configuration files"
-        else
+    if [ ! -f .env.example ] && [ ! -f "*.php" ]; then
+        if ! docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
             error "Failed to initialize project"
             exit 1
         fi
@@ -316,63 +285,29 @@ main() {
 
     # Step 1.5: Ensure README.md is present
     if [ ! -f README.md ]; then
-        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true'"
-        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true'; then
-            if [ -f README.md ]; then
-                success "Published: README.md"
-            else
-                info "README.md not available in image, skipping"
-            fi
-        fi
-    else
-        info "Found existing README.md, skipping"
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true' >/dev/null 2>&1
     fi
 
     # Step 1.6: Ensure Mongodb.php controller is present
     if [ ! -f Mongodb.php ]; then
-        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true'"
-        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true'; then
-            if [ -f Mongodb.php ]; then
-                success "Published: Mongodb.php"
-            else
-                info "Mongodb.php not available in image, skipping"
-            fi
-        fi
-    else
-        info "Found existing Mongodb.php, skipping"
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true' >/dev/null 2>&1
     fi
 
     # Step 1.7: Ensure Redis.php controller is present
     if [ ! -f Redis.php ]; then
-        plain "$ docker run --rm -v \$(pwd):/init ${DEFAULT_IMAGE} sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true'"
-        if docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true'; then
-            if [ -f Redis.php ]; then
-                success "Published: Redis.php"
-            else
-                info "Redis.php not available in image, skipping"
-            fi
-        fi
-    else
-        info "Found existing Redis.php, skipping"
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true' >/dev/null 2>&1
     fi
 
     # Step 2: Create .env file
-    if [ -f .env ]; then
-        info "Found existing .env file, skipping creation"
-        plain "  To use new settings, delete .env and run install again"
-    else
-        plain "$ cp .env.example .env"
+    if [ ! -f .env ]; then
         if [ -f .env.example ]; then
             cp .env.example .env || {
                 error "Failed to copy .env.example"
                 exit 1
             }
-            plain "$ sed 's/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/' .env"
             sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
-            plain "$ sed 's/^PORT=.*/PORT=${PORT}/' .env"
             sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
         else
-            plain "$ cat > .env"
             cat > .env <<EOF
 MCP_SERVER_NAME=${SERVER_NAME}
 APP_VERSION=0.0.0
@@ -383,15 +318,10 @@ PORT=${PORT}
 DOCKER_IMAGE=${DEFAULT_IMAGE}
 EOF
         fi
-        success "Created: .env (MCP_SERVER_NAME=${SERVER_NAME}, PORT=${PORT})"
     fi
 
     # Step 3: Create docker-compose.yml
-    if [ -f docker-compose.yml ]; then
-        info "Found existing docker-compose.yml, skipping creation"
-        plain "  To use new settings, delete docker-compose.yml and run install again"
-    else
-        plain "$ cat > docker-compose.yml"
+    if [ ! -f docker-compose.yml ]; then
         cat > docker-compose.yml <<EOF
 services:
   mcp:
@@ -436,80 +366,43 @@ volumes:
   redis-data:
   mongodb-data:
 EOF
-        success "Created: docker-compose.yml"
     fi
 
-    # Step 4: Stop any existing containers
+    # Step 4 & 5: Manage services (silent)
     if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}"; then
-        plain "$ ${COMPOSE_CMD} down"
-        ${COMPOSE_CMD} down >/dev/null 2>&1 || true
-        info "Stopped existing containers"
-    fi
-
-    # Step 5: Prompt to start services
-    plain ""
-    if [ -c /dev/tty ]; then
-        prompt_yn "Start services now? (Y/n): " "START_SERVICES" "yes"
-    else
-        # Non-interactive mode: default to yes
-        START_SERVICES="yes"
-        info "Starting services (default: yes in non-interactive mode)"
-    fi
-
-    if [ "$START_SERVICES" = "yes" ]; then
-        plain "$ ${COMPOSE_CMD} up -d"
-        if ${COMPOSE_CMD} up -d 2>&1; then
-            success "Started: ${SERVER_NAME} on http://localhost:${PORT}"
-            success "Started: ${SERVER_NAME}-redis on localhost:${REDIS_PORT}"
-            success "Started: ${SERVER_NAME}-mongodb on localhost:${MONGODB_PORT}"
-        else
-            error "Failed to start services"
+        # Existing containers: restart with down && up
+        if ! (${COMPOSE_CMD} down && ${COMPOSE_CMD} up -d) >/dev/null 2>&1; then
+            error "Failed to restart services"
             exit 1
         fi
     else
-        plain ""
-        info "To start services later, run:"
-        plain "  cd ${INSTALL_DIR}"
-        plain "  ${COMPOSE_CMD} up -d"
+        # No existing containers: just start
+        if ! ${COMPOSE_CMD} up -d >/dev/null 2>&1; then
+            error "Failed to start services"
+            exit 1
+        fi
     fi
 
     # Step 6: Connect to Claude agents
-    plain ""
     if [ "$CLAUDE_AVAILABLE" = "yes" ]; then
         if [ -c /dev/tty ]; then
             prompt_yn "Add to Claude agents? (Y/n): " "ADD_TO_CLAUDE" "yes"
-        else
-            # Non-interactive mode: default to yes
-            ADD_TO_CLAUDE="yes"
-            info "Adding to Claude agents (default: yes in non-interactive mode)"
-        fi
-
-        if [ "$ADD_TO_CLAUDE" = "yes" ]; then
-            plain "$ ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
-            if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-                success "Added to Claude: ${SERVER_NAME}"
-            else
-                error "Failed to add to Claude"
-                plain "  Manually run: ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
+            if [ "$ADD_TO_CLAUDE" = "yes" ]; then
+                if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
+                    success "Added to Claude: ${SERVER_NAME}"
+                else
+                    error "Failed to add to Claude"
+                fi
             fi
+        else
+            # Non-interactive mode: auto-add
+            ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null || true
         fi
-    else
-        plain "To add to Claude agents, install Claude CLI and run:"
-        plain "  ${AGENT_CMD} ${SERVER_NAME} http://localhost:${PORT}"
-    fi
-
-    plain ""
-    plain "Get started by providing the README.md to your agent to build your own MCP tools!"
-    plain ""
-    if [ "$START_SERVICES" != "yes" ]; then
-        plain "Start services:"
-        plain "  cd ${INSTALL_DIR}"
-        plain "  ${COMPOSE_CMD} up -d"
         plain ""
     fi
 
     # Output MCP connection string
-    plain "MCP Connection String (add to your MCP client config):"
+    plain "Add to your MCP client: Cursor, VS Code, etc."
     plain ""
     plain "    \"${SERVER_NAME}\": {"
     plain "      \"type\": \"streamable-http\","
