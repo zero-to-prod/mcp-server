@@ -253,33 +253,35 @@ main() {
     CLAUDE_AVAILABLE="no"
     command_exists claude && CLAUDE_AVAILABLE="yes"
 
-    # Check for Docker image updates
-    LOCAL_IMAGE_ID=$(docker images -q "${DEFAULT_IMAGE}" 2>/dev/null)
+    # Check for Docker image updates (only on existing installations)
+    if [ -f docker-compose.yml ]; then
+        # Existing installation - check for updates
+        LOCAL_IMAGE_ID=$(docker images -q "${DEFAULT_IMAGE}" 2>/dev/null)
 
-    if [ -n "$LOCAL_IMAGE_ID" ]; then
-        # Image exists locally, check for updates by pulling
-        if [ -c /dev/tty ]; then
-            # Interactive mode: ask before checking for updates
-            prompt_yn "Check for Docker image updates? (Y/n): " "CHECK_UPDATES" "yes"
-            if [ "$CHECK_UPDATES" = "yes" ]; then
+        if [ -n "$LOCAL_IMAGE_ID" ]; then
+            if [ -c /dev/tty ]; then
+                # Interactive mode: ask before checking for updates
+                prompt_yn "Check for Docker image updates? (Y/n): " "CHECK_UPDATES" "yes"
+                if [ "$CHECK_UPDATES" = "yes" ]; then
+                    PULL_OUTPUT=$(docker pull "${DEFAULT_IMAGE}" 2>&1)
+                    if echo "$PULL_OUTPUT" | grep -q "Downloaded newer image"; then
+                        success "Updated to latest image"
+                    elif echo "$PULL_OUTPUT" | grep -q "Image is up to date"; then
+                        : # Silent - already up to date
+                    else
+                        error "Failed to check for updates. Continuing with current version..."
+                    fi
+                fi
+            else
+                # Non-interactive: check and auto-update silently
                 PULL_OUTPUT=$(docker pull "${DEFAULT_IMAGE}" 2>&1)
                 if echo "$PULL_OUTPUT" | grep -q "Downloaded newer image"; then
                     success "Updated to latest image"
-                elif echo "$PULL_OUTPUT" | grep -q "Image is up to date"; then
-                    : # Silent - already up to date
-                else
-                    error "Failed to check for updates. Continuing with current version..."
                 fi
-            fi
-        else
-            # Non-interactive: check and auto-update silently
-            PULL_OUTPUT=$(docker pull "${DEFAULT_IMAGE}" 2>&1)
-            if echo "$PULL_OUTPUT" | grep -q "Downloaded newer image"; then
-                success "Updated to latest image"
             fi
         fi
     else
-        # No local image, pull it (first install)
+        # Fresh installation - pull latest image silently
         if ! docker pull "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
             error "Failed to pull image"
             exit 1
