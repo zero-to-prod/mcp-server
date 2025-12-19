@@ -409,6 +409,8 @@ EOF
     plain "      \"url\": \"http://localhost:${PORT}/mcp\""
     plain "    }"
     plain ""
+    plain ""
+    plain "Instruct your agent to read README.md to build your first MCP tool!"
 }
 
 # Run main function
