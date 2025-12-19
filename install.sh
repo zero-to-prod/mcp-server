@@ -253,11 +253,37 @@ main() {
     CLAUDE_AVAILABLE="no"
     command_exists claude && CLAUDE_AVAILABLE="yes"
 
-    # Pull latest Docker image (silent)
-    if docker pull "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
-        : # Silent success
+    # Check for Docker image updates
+    LOCAL_IMAGE_ID=$(docker images -q "${DEFAULT_IMAGE}" 2>/dev/null)
+
+    if [ -n "$LOCAL_IMAGE_ID" ]; then
+        # Image exists locally, check for updates by pulling
+        if [ -c /dev/tty ]; then
+            # Interactive mode: ask before checking for updates
+            prompt_yn "Check for Docker image updates? (Y/n): " "CHECK_UPDATES" "yes"
+            if [ "$CHECK_UPDATES" = "yes" ]; then
+                PULL_OUTPUT=$(docker pull "${DEFAULT_IMAGE}" 2>&1)
+                if echo "$PULL_OUTPUT" | grep -q "Downloaded newer image"; then
+                    success "Updated to latest image"
+                elif echo "$PULL_OUTPUT" | grep -q "Image is up to date"; then
+                    : # Silent - already up to date
+                else
+                    error "Failed to check for updates. Continuing with current version..."
+                fi
+            fi
+        else
+            # Non-interactive: check and auto-update silently
+            PULL_OUTPUT=$(docker pull "${DEFAULT_IMAGE}" 2>&1)
+            if echo "$PULL_OUTPUT" | grep -q "Downloaded newer image"; then
+                success "Updated to latest image"
+            fi
+        fi
     else
-        error "Failed to pull image. Continuing with local image..."
+        # No local image, pull it (first install)
+        if ! docker pull "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
+            error "Failed to pull image"
+            exit 1
+        fi
     fi
 
     # Auto-configuration (silent)
@@ -429,7 +455,7 @@ EOF
     plain "    }"
     plain ""
     plain "Instruct your agent to use README.md to build your first MCP tool!"
-    plain ""
+    plain "  "
 }
 
 # Run main function
