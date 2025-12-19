@@ -419,15 +419,15 @@ EOF
     fi
 
     # Output MCP connection string
-    plain "MCP Connection String:"
     plain ""
+    plain "MCP Connection String:"
     plain "\"${SERVER_NAME}\": {"
     plain "  \"type\": \"streamable-http\","
     plain "  \"url\": \"http://localhost:${PORT}/mcp\""
     plain "}"
     plain ""
     plain "Add to Claude Code:"
-    plain "  claude mcp add --transport http ${SERVER_NAME} http://localhost:${PORT}"
+    plain "claude mcp add --transport http ${SERVER_NAME} http://localhost:${PORT}"
     plain ""
     plain "Instruct your agent to use README.md to build your first MCP tool!"
 }
