@@ -268,10 +268,18 @@ main() {
         SERVER_NAME="$DEFAULT_SERVER_NAME"
     fi
 
-    # Auto-resolve ports
-    PORT=$(find_available_port "$DEFAULT_PORT")
-    REDIS_PORT=$(find_available_port "$DEFAULT_REDIS_PORT")
-    MONGODB_PORT=$(find_available_port "$DEFAULT_MONGODB_PORT")
+    # Auto-resolve ports (or use existing from .env if present)
+    if [ -f .env ]; then
+        # Read existing ports from .env
+        PORT=$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_PORT")
+        REDIS_PORT=$(grep "^REDIS_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_REDIS_PORT")
+        MONGODB_PORT=$(grep "^MONGODB_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_MONGODB_PORT")
+    else
+        # Find available ports for new installation
+        PORT=$(find_available_port "$DEFAULT_PORT")
+        REDIS_PORT=$(find_available_port "$DEFAULT_REDIS_PORT")
+        MONGODB_PORT=$(find_available_port "$DEFAULT_MONGODB_PORT")
+    fi
 
     INSTALL_DIR="$(pwd)"
 
@@ -307,6 +315,8 @@ main() {
             }
             sed_inplace "s/^MCP_SERVER_NAME=.*/MCP_SERVER_NAME=${SERVER_NAME}/" .env
             sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
+            sed_inplace "s/^REDIS_PORT=.*/REDIS_PORT=${REDIS_PORT}/" .env
+            sed_inplace "s/^MONGODB_PORT=.*/MONGODB_PORT=${MONGODB_PORT}/" .env
         else
             cat > .env <<EOF
 MCP_SERVER_NAME=${SERVER_NAME}
@@ -315,6 +325,8 @@ APP_DEBUG=false
 MCP_CONTROLLER_PATHS=controllers
 MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 PORT=${PORT}
+REDIS_PORT=${REDIS_PORT}
+MONGODB_PORT=${MONGODB_PORT}
 DOCKER_IMAGE=${DEFAULT_IMAGE}
 EOF
         fi
@@ -385,32 +397,38 @@ EOF
 
     # Step 6: Connect to Claude agents
     if [ "$CLAUDE_AVAILABLE" = "yes" ]; then
-        if [ -c /dev/tty ]; then
-            prompt_yn "Add to Claude agents? (Y/n): " "ADD_TO_CLAUDE" "yes"
-            if [ "$ADD_TO_CLAUDE" = "yes" ]; then
-                if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-                    success "Added to Claude: ${SERVER_NAME}"
-                else
-                    error "Failed to add to Claude"
-                fi
-            fi
+        # Check if MCP server is already configured
+        if claude mcp get "${SERVER_NAME}" >/dev/null 2>&1; then
+            # Server already configured, skip prompt
+            :
         else
-            # Non-interactive mode: auto-add
-            ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null || true
+            # Server not configured, prompt to add
+            if [ -c /dev/tty ]; then
+                prompt_yn "Add to Claude agents? (Y/n): " "ADD_TO_CLAUDE" "yes"
+                if [ "$ADD_TO_CLAUDE" = "yes" ]; then
+                    if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
+                        success "Added to Claude: ${SERVER_NAME}"
+                    else
+                        error "Failed to add to Claude"
+                    fi
+                fi
+            else
+                # Non-interactive mode: auto-add
+                ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null || true
+            fi
         fi
         plain ""
     fi
 
     # Output MCP connection string
-    plain "Add to your MCP client: Cursor, VS Code, etc."
+    plain "MCP Connection String (add to your MCP client config):"
     plain ""
     plain "    \"${SERVER_NAME}\": {"
     plain "      \"type\": \"streamable-http\","
     plain "      \"url\": \"http://localhost:${PORT}/mcp\""
     plain "    }"
     plain ""
-    plain ""
-    plain "Instruct your agent to read README.md to build your first MCP tool!"
+    plain "Instruct your agent to use README.md to build your first MCP tool!"
 }
 
 # Run main function
