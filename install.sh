@@ -507,6 +507,15 @@ EOF
         plain "  ${COMPOSE_CMD} up -d"
         plain ""
     fi
+
+    # Output MCP connection string
+    plain "MCP Connection String (add to your MCP client config):"
+    plain ""
+    plain "    \"${SERVER_NAME}\": {"
+    plain "      \"type\": \"streamable-http\","
+    plain "      \"url\": \"http://localhost:${PORT}/mcp\""
+    plain "    }"
+    plain ""
 }
 
 # Run main function

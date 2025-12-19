@@ -385,19 +385,9 @@ After creating or modifying tools, verify functionality:
 
 For Claude Code CLI users: Use the `/mcp` command to reconnect.
 
-### 2. List available tools
+### 2. Test tool execution
 
-```shell
-claude mcp inspect mcp1
-```
-
-Verify new tool appears in output with correct name and description.
-
-### 3. Test tool execution
-
-```shell
-claude mcp call mcp1 tool_name '{"param": "value"}'
-```
+Test your tools directly in your MCP client (Claude Desktop or Claude Code CLI) after reconnecting.
 
 **Validation checklist:**
 
@@ -406,30 +396,7 @@ claude mcp call mcp1 tool_name '{"param": "value"}'
 - Error cases throw appropriate exceptions
 - Parameter validation works correctly
 
-### 4. Common test patterns
-
-**Test valid input:**
-
-```shell
-claude mcp call mcp1 divide '{"a": 10, "b": 2}'
-# Expected: {"result": 5}
-```
-
-**Test validation:**
-
-```shell
-claude mcp call mcp1 divide '{"a": 10, "b": 0}'
-# Expected: ToolCallException: "cannot divide by zero"
-```
-
-**Test missing parameters:**
-
-```shell
-claude mcp call mcp1 divide '{"a": 10}'
-# Expected: Parameter validation error
-```
-
-### 5. Debug failures
+### 3. Debug failures
 
 **Check container logs:**
 
