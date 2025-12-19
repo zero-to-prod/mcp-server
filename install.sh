@@ -9,7 +9,6 @@ DEFAULT_PORT="8080"
 DEFAULT_REDIS_PORT="6379"
 DEFAULT_MONGODB_PORT="27017"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
-AGENT_CMD="claude mcp add --transport http"
 
 # Output functions using printf for portability
 info() { printf '\033[0;34m→\033[0m %s\n' "$1"; }
@@ -249,10 +248,6 @@ main() {
         COMPOSE_CMD="docker-compose"
     fi
 
-    # Check Claude CLI
-    CLAUDE_AVAILABLE="no"
-    command_exists claude && CLAUDE_AVAILABLE="yes"
-
     # Check for Docker image updates (only on existing installations)
     if [ -f docker-compose.yml ]; then
         # Existing installation - check for updates
@@ -423,41 +418,18 @@ EOF
         fi
     fi
 
-    # Step 6: Connect to Claude agents
-    if [ "$CLAUDE_AVAILABLE" = "yes" ]; then
-        # Check if MCP server is already configured
-        if claude mcp get "${SERVER_NAME}" >/dev/null 2>&1; then
-            # Server already configured, skip prompt
-            :
-        else
-            # Server not configured, prompt to add
-            if [ -c /dev/tty ]; then
-                prompt_yn "Add to Claude agents? (Y/n): " "ADD_TO_CLAUDE" "yes"
-                if [ "$ADD_TO_CLAUDE" = "yes" ]; then
-                    if ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null; then
-                        success "Added to Claude: ${SERVER_NAME}"
-                    else
-                        error "Failed to add to Claude"
-                    fi
-                fi
-            else
-                # Non-interactive mode: auto-add
-                ${AGENT_CMD} "${SERVER_NAME}" "http://localhost:${PORT}" 2>/dev/null || true
-            fi
-        fi
-        plain ""
-    fi
-
     # Output MCP connection string
-    plain "MCP Connection String (add to your MCP client config):"
+    plain "MCP Connection String:"
     plain ""
-    plain "    \"${SERVER_NAME}\": {"
-    plain "      \"type\": \"streamable-http\","
-    plain "      \"url\": \"http://localhost:${PORT}/mcp\""
-    plain "    }"
+    plain "\"${SERVER_NAME}\": {"
+    plain "  \"type\": \"streamable-http\","
+    plain "  \"url\": \"http://localhost:${PORT}/mcp\""
+    plain "}"
+    plain ""
+    plain "Add to Claude Code:"
+    plain "  claude mcp add --transport http ${SERVER_NAME} http://localhost:${PORT}"
     plain ""
     plain "Instruct your agent to use README.md to build your first MCP tool!"
-    plain "  "
 }
 
 # Run main function
