@@ -32,9 +32,9 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app/storage/mcp-sessions \
              /app/storage/cache \
-             /app/controllers \
+             /app/src \
  && chown -R www-data:www-data /app/storage \
- && chown -R www-data:www-data /app/controllers
+ && chown -R www-data:www-data /app/src
 
 # Copy vendor dependencies from build stage (changes when composer.lock changes)
 COPY --from=build /app/vendor /app/vendor
@@ -46,7 +46,7 @@ COPY composer.json composer.lock /app/
 
 # Copy application code last (changes frequently)
 COPY --chown=www-data:www-data public /app/public
-COPY --chown=www-data:www-data controllers /app/controllers
+COPY --chown=www-data:www-data src /app/src
 COPY --chown=www-data:www-data .env.example /app/
 COPY --chown=www-data:www-data docker-compose.template.yml /app/
 COPY --chown=www-data:www-data README.md /app/

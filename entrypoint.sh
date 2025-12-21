@@ -4,7 +4,7 @@ set -e
 # Init mode: copy template files and exit
 if [ "$1" = "init" ]; then
     INIT_DIR="/init"
-    SOURCE_CONTROLLERS="/app/controllers"
+    SOURCE_CONTROLLERS="/app/src"
 
     if [ ! -d "$INIT_DIR" ]; then
         echo "Error: /init directory not mounted"
@@ -15,7 +15,12 @@ if [ "$1" = "init" ]; then
     echo "Initializing MCP Server template files..."
     echo ""
 
-    # Copy all controller files from image controllers directory
+    # Create src directory in init location
+    if [ ! -d "$INIT_DIR/src" ]; then
+        mkdir -p "$INIT_DIR/src" 2>/dev/null || true
+    fi
+
+    # Copy all controller files from image src directory to init/src
     if [ -d "$SOURCE_CONTROLLERS" ]; then
         controller_files=$(find "$SOURCE_CONTROLLERS" -maxdepth 1 -type f -name "*.php" 2>/dev/null | wc -l)
         copied_count=0
@@ -25,13 +30,13 @@ if [ "$1" = "init" ]; then
             [ -f "$file" ] || continue
             filename=$(basename "$file")
 
-            if [ ! -f "$INIT_DIR/$filename" ]; then
-                if cp "$file" "$INIT_DIR/$filename" 2>/dev/null; then
-                    echo "✓ Created $filename"
+            if [ ! -f "$INIT_DIR/src/$filename" ]; then
+                if cp "$file" "$INIT_DIR/src/$filename" 2>/dev/null; then
+                    echo "✓ Created src/$filename"
                     copied_count=$((copied_count + 1))
                 fi
             else
-                echo "⊘ Skipped $filename (already exists)"
+                echo "⊘ Skipped src/$filename (already exists)"
                 skipped_count=$((skipped_count + 1))
             fi
         done
@@ -71,7 +76,7 @@ echo "Version: ${APP_VERSION:-0.0.0}"
 echo "Debug Mode: ${APP_DEBUG:-false}"
 echo ""
 
-CONTROLLER_PATH="/app/controllers"
+CONTROLLER_PATH="/app/src"
 
 if [ ! -d "$CONTROLLER_PATH" ]; then
     echo "   Controller path does not exist: $CONTROLLER_PATH"
@@ -81,7 +86,7 @@ fi
 
 controller_count=$(find "$CONTROLLER_PATH" -maxdepth 1 -name "*.php" 2>/dev/null | wc -l)
 tools_count=$(grep -r "#\[McpTool" "$CONTROLLER_PATH" 2>/dev/null | wc -l)
-echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: controllers"
+echo "Found $controller_count controller(s) with ~$tools_count tool(s) in: src"
 echo ""
 
 if [ ! -d "$MCP_SESSIONS_DIR" ]; then
