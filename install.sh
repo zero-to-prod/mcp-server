@@ -306,17 +306,14 @@ main() {
 
     INSTALL_DIR="$(pwd)"
 
-    # Step 1: Initialize project
-    if [ ! -f .env.example ] && [ ! -f "*.php" ]; then
-        if ! docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-            error "Failed to initialize project"
-            exit 1
-        fi
-    fi
-
-    # Step 1.5: Ensure README.md is present
+    # Step 1: Copy README.md from image
     if [ ! -f README.md ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
+    # Step 1.5: Copy .env.example from image
+    if [ ! -f .env.example ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/.env.example /init/.env.example 2>/dev/null || true' >/dev/null 2>&1
     fi
 
     # Step 1.6: Create src directory if it doesn't exist
@@ -347,6 +344,7 @@ main() {
             sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
             sed_inplace "s/^REDIS_PORT=.*/REDIS_PORT=${REDIS_PORT}/" .env
             sed_inplace "s/^MONGODB_PORT=.*/MONGODB_PORT=${MONGODB_PORT}/" .env
+            sed_inplace "s/^MCP_CONTROLLER_PATHS=.*/MCP_CONTROLLER_PATHS=src/" .env
         else
             cat > .env <<EOF
 MCP_SERVER_NAME=${SERVER_NAME}
@@ -372,7 +370,7 @@ services:
     ports:
       - "\${PORT:-${PORT}}:80"
     volumes:
-      - .:/app/src
+      - ./src:/app/src
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env

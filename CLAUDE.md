@@ -38,11 +38,13 @@ Server::builder()
 ```
 
 - **Discovery paths**: Colon-separated list in `MCP_CONTROLLER_PATHS` environment variable (default: `src`)
-- **Base path**: Project root directory
+  - Can be relative (e.g., `src`, `custom`) or absolute (e.g., `/app/controllers`)
+  - Multiple paths supported: `src:custom:/absolute/path`
+- **Base path**: Project root directory (`/app` in container)
 - **Controllers namespace**: **Optional** - Can use `Controllers\` or no namespace
 - **File session storage**: `FileSessionStore` with configurable directory
 - **Controller loading**: All PHP files in controller paths are automatically loaded with `require_once`
-- **Default location**: Controllers are stored in `src/` directory by default
+- **Default location**: Controllers are stored in `src/` directory (mounted from host)
 
 ### MCP Controller Pattern
 
@@ -110,7 +112,7 @@ class ExampleController
 
 **Key Pattern Details**:
 - Controllers should use `Controllers\` namespace (or no namespace)
-- Place controller files in `/controllers` directory
+- Place controller files in `src/` directory (or custom path via `MCP_CONTROLLER_PATHS`)
 - Use `#[Schema]` attribute for parameter descriptions and validation
 - Tool return values are automatically wrapped in appropriate MCP content types
 - Throw `ToolCallException` for user-facing errors (other exceptions show generic messages)
@@ -127,16 +129,24 @@ The Docker image supports running multiple independent servers:
 
 Example multi-instance setup:
 ```bash
-# Instance 1
+# Instance 1 - Mount local src1/ directory
 docker run -d -p 8081:80 \
-  -v ~/controllers1:/app/src:ro \
+  -v ~/project1/src:/app/src:ro \
   -e MCP_SERVER_NAME=server1 \
   davidsmith3/mcp-server:latest
 
-# Instance 2
+# Instance 2 - Mount local src2/ directory
 docker run -d -p 8082:80 \
-  -v ~/controllers2:/app/src:ro \
+  -v ~/project2/src:/app/src:ro \
   -e MCP_SERVER_NAME=server2 \
+  davidsmith3/mcp-server:latest
+
+# Instance 3 - Use multiple controller paths
+docker run -d -p 8083:80 \
+  -v ~/project3/src:/app/src:ro \
+  -v ~/shared:/app/shared:ro \
+  -e MCP_SERVER_NAME=server3 \
+  -e MCP_CONTROLLER_PATHS=src:shared \
   davidsmith3/mcp-server:latest
 ```
 

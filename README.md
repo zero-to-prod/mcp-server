@@ -90,21 +90,23 @@ Each controller file is a self-contained plugin:
 
 **CRITICAL: Where to create controller files**
 
-Create controller files **in the root of your project directory** (same directory as `.env` and `docker-compose.yml`).
+Create controller files **in the `src/` directory** of your project.
 
-Your project directory gets mounted as `/app/src` inside the Docker container.
+The `src/` directory gets mounted as `/app/src` inside the Docker container.
 
 **Example project structure:**
 
 ```
 your-project/
-.env
-docker-compose.yml
-MyController.php    <- Create controllers here (root)
-Redis.php           <- Create controllers here (root)
+├── .env
+├── docker-compose.yml
+└── src/
+    ├── MyController.php    <- Create controllers here
+    ├── Redis.php           <- Built-in controller (copied by installer)
+    └── Mongodb.php         <- Built-in controller (copied by installer)
 ```
 
-These files will be accessible at `/app/src/MyController.php` and `/app/src/Redis.php` inside the container.
+These files will be accessible at `/app/src/MyController.php`, `/app/src/Redis.php`, etc. inside the container.
 
 **File structure:**
 
@@ -177,7 +179,7 @@ image: redis:7-alpine
 command: redis-server --appendonly yes
 ```
 
-### Redis Tools (Redis.php in your project root)
+### Redis Tools (Redis.php in src/)
 
 **redis.inspect** - Get metadata + preview + TTL
 
@@ -246,7 +248,7 @@ volumes:
   - mongodb-data:/data/db
 ```
 
-### MongoDB Tools (Mongodb.php in your project root)
+### MongoDB Tools (Mongodb.php in src/)
 
 **mongodb.document.find** - Query documents in collection
 
@@ -409,7 +411,7 @@ docker logs mcp1
 **Check syntax errors:**
 
 ```shell
-# Path inside Docker container (your root files are mounted to /app/src)
+# Path inside Docker container (your src/ directory is mounted to /app/src)
 docker exec mcp1 php -l /app/src/YourController.php
 ```
 
