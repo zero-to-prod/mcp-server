@@ -426,7 +426,7 @@ EOF
     # Step 4 & 5: Manage services
     if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}"; then
         # Existing containers: restart with down && up
-        info "Restarting services..."
+        echo "Restarting services..."
         if ! (${COMPOSE_CMD} down 2>&1 | blue && ${COMPOSE_CMD} up -d 2>&1 | blue); then
             error "Failed to restart services"
             exit 1
