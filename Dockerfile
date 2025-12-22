@@ -1,16 +1,25 @@
-FROM dunglas/frankenphp:1-php8.3-bookworm AS build
+FROM dunglas/frankenphp:1-php8.4-bookworm AS build
 
+# Install system dependencies and PHP extensions
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git unzip \
+ && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+    $PHPIZE_DEPS \
+    libssl-dev \
+    libsasl2-dev \
+ && pecl install mongodb \
+ && docker-php-ext-enable mongodb \
+ && apt-get purge -y --auto-remove $PHPIZE_DEPS \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock /app/
 
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-mongodb
+RUN composer install --no-dev --optimize-autoloader
 
-FROM dunglas/frankenphp:1-php8.3-bookworm AS production
+FROM dunglas/frankenphp:1-php8.4-bookworm AS production
 
 ARG VERSION=1.0.0
 ENV APP_VERSION=$VERSION
