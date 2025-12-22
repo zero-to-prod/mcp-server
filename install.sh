@@ -225,7 +225,6 @@ prompt_port() {
 # Main installation
 main() {
     echo "Installing server..."
-    echo ""
     
     # Check Docker
     if ! command_exists docker; then
