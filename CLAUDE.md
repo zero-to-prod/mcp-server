@@ -85,6 +85,12 @@ minItems: 1, maxItems: 10                                           // array
 enum: ['opt1', 'opt2']                                              // any type
 ```
 
+**⚠️ PITFALL:** `default` NOT supported in `#[Schema()]`. Use function parameter defaults:
+```php
+#[Schema(type: 'string', enum: ['a', 'b'])] string $param = 'a'  // ✓ CORRECT
+#[Schema(type: 'string', enum: ['a', 'b'], default: 'a')]        // ✗ WRONG
+```
+
 ## Environment (.env)
 
 | Variable | Default | Purpose |
