@@ -1,10 +1,9 @@
-FROM dunglas/frankenphp:1-php8.4-bookworm AS build
+# Base stage with MongoDB extension (compiled once, reused by all stages)
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 
-# Install system dependencies and PHP extensions
+# Install MongoDB extension (expensive operation - do it once)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-    git \
-    unzip \
     $PHPIZE_DEPS \
     libssl-dev \
     libsasl2-dev \
@@ -14,12 +13,24 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
+# Build stage (depends on base with MongoDB already installed)
+FROM base AS build
+
+# Install build tools
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock /app/
 
 RUN composer install --no-dev --optimize-autoloader
 
-FROM dunglas/frankenphp:1-php8.4-bookworm AS production
+# Production stage (depends on base with MongoDB already installed)
+FROM base AS production
 
 ARG VERSION=1.0.0
 ENV APP_VERSION=$VERSION
@@ -27,16 +38,10 @@ ENV MCP_SERVER_NAME="MCP Server"
 ENV MCP_SESSIONS_DIR="/app/storage/mcp-sessions"
 ENV APP_DEBUG="false"
 
-# Install system dependencies and PHP extensions first (expensive, rarely changes)
+# Install runtime dependencies (MongoDB already installed in base stage)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     jq \
-    $PHPIZE_DEPS \
-    libssl-dev \
-    libsasl2-dev \
- && pecl install mongodb \
- && docker-php-ext-enable mongodb \
- && apt-get purge -y --auto-remove $PHPIZE_DEPS \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app/storage/mcp-sessions \

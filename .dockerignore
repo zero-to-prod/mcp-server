@@ -13,6 +13,8 @@
 #   - composer.lock     (pinned versions)
 #   - entrypoint.sh     (startup script)
 #   - .env.example      (config template)
+#   - README.md         (documentation)
+#   - CLAUDE.md         (quick reference)
 #   - vendor/           (from build stage)
 #
 # ============================================================================
@@ -43,7 +45,6 @@ Thumbs.db
 
 # Claude Code Configuration
 .claude/
-CLAUDE.md
 
 # Documentation (not needed at runtime, except README.md which is published to mounted directories)
 CONTRIBUTING.md

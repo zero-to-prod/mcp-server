@@ -7,10 +7,12 @@ on:
       - completed
 
 jobs:
-  build_docker_image:
+  prepare:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
-
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+      major_minor: ${{ steps.get_version.outputs.MAJOR_MINOR }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -19,12 +21,27 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          # Extract semantic version from the release workflow trigger
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           VERSION=${TAG#v}
           MAJOR_MINOR=$(echo $VERSION | cut -d. -f1,2)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "MAJOR_MINOR=$MAJOR_MINOR" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "MAJOR_MINOR=$MAJOR_MINOR" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Prepare platform tag
+        id: prep
+        run: |
+          PLATFORM_PAIR=${{ matrix.platform }}
+          echo "PLATFORM_TAG=${PLATFORM_PAIR//\//-}" >> $GITHUB_OUTPUT
+          echo "CACHE_SCOPE=${PLATFORM_PAIR//\//-}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,39 +58,82 @@ jobs:
           username: davidsmith3
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push multi-platform
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
-        timeout-minutes: 180
+        timeout-minutes: 60
         with:
           context: .
           target: production
-          platforms: linux/amd64,linux/arm64
-          push: true
+          platforms: ${{ matrix.platform }}
           cache-from: |
-            type=gha
-            type=registry,ref=davidsmith3/mcp-server:buildcache
+            type=gha,scope=buildkit-${{ steps.prep.outputs.CACHE_SCOPE }}
+            type=registry,ref=davidsmith3/mcp-server:buildcache-${{ steps.prep.outputs.PLATFORM_TAG }}
+            type=registry,ref=davidsmith3/mcp-server:latest
           cache-to: |
-            type=gha,mode=max
-            type=registry,ref=davidsmith3/mcp-server:buildcache,mode=max
+            type=gha,mode=max,scope=buildkit-${{ steps.prep.outputs.CACHE_SCOPE }}
+            type=registry,ref=davidsmith3/mcp-server:buildcache-${{ steps.prep.outputs.PLATFORM_TAG }},mode=max
           build-args: |
-            VERSION=${{ env.VERSION }}
-          tags: |
-            davidsmith3/mcp-server:latest
-            davidsmith3/mcp-server:${{ env.VERSION }}
-            davidsmith3/mcp-server:${{ env.MAJOR_MINOR }}
-          labels: |
-            org.opencontainers.image.title=Extensible MCP Server
-            org.opencontainers.image.description=An extensible Model Context Protocol (MCP) server
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.html_url }}
-            org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
-            org.opencontainers.image.vendor=ZeroToProd
-            org.opencontainers.image.licenses=MIT
+            VERSION=${{ needs.prepare.outputs.version }}
+            BUILDKIT_INLINE_CACHE=1
+          outputs: type=image,name=davidsmith3/mcp-server,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.prep.outputs.PLATFORM_TAG }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        timeout-minutes: 1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        timeout-minutes: 1
+        with:
+          username: davidsmith3
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --tag davidsmith3/mcp-server:latest \
+            --tag davidsmith3/mcp-server:${{ needs.prepare.outputs.version }} \
+            --tag davidsmith3/mcp-server:${{ needs.prepare.outputs.major_minor }} \
+            $(printf 'davidsmith3/mcp-server@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect davidsmith3/mcp-server:${{ needs.prepare.outputs.version }}
+
+  update-description:
+    needs: merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
 
       - name: Update Docker Hub description
-        if: success()
         continue-on-error: true
         uses: peter-evans/dockerhub-description@v5
         with:
