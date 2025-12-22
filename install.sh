@@ -11,9 +11,9 @@ DEFAULT_MONGODB_PORT="27017"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 
 # Output functions using printf for portability
-info() { printf '\033[0;34m→\033[0m %s\n' "$1"; }
-success() { printf '\033[0;32m✓\033[0m %s\n' "$1"; }
-error() { printf '\033[0;31m✗\033[0m %s\n' "$1"; }
+info() { printf '\033[0;34m%s\033[0m\n' "$1"; }
+success() { printf '\033[0;32m%s\033[0m\n' "$1"; }
+error() { printf '\033[0;31m%s\033[0m\n' "$1"; }
 plain() { printf '%s\n' "$1"; }
 
 # Colorize output in blue
