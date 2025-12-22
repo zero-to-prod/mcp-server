@@ -16,6 +16,13 @@ success() { printf '\033[0;32m✓\033[0m %s\n' "$1"; }
 error() { printf '\033[0;31m✗\033[0m %s\n' "$1"; }
 plain() { printf '%s\n' "$1"; }
 
+# Colorize output in blue
+blue() {
+    while IFS= read -r line; do
+        printf '\033[0;34m%s\033[0m\n' "$line"
+    done
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -278,8 +285,9 @@ main() {
             fi
         fi
     else
-        # Fresh installation - pull latest image silently
-        if ! docker pull "${DEFAULT_IMAGE}" >/dev/null 2>&1; then
+        # Fresh installation - pull latest image
+        info "Pulling Docker image..."
+        if ! docker pull "${DEFAULT_IMAGE}" 2>&1 | blue; then
             error "Failed to pull image"
             exit 1
         fi
@@ -415,16 +423,18 @@ volumes:
 EOF
     fi
 
-    # Step 4 & 5: Manage services (silent)
+    # Step 4 & 5: Manage services
     if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${SERVER_NAME}"; then
         # Existing containers: restart with down && up
-        if ! (${COMPOSE_CMD} down && ${COMPOSE_CMD} up -d) >/dev/null 2>&1; then
+        info "Restarting services..."
+        if ! (${COMPOSE_CMD} down 2>&1 | blue && ${COMPOSE_CMD} up -d 2>&1 | blue); then
             error "Failed to restart services"
             exit 1
         fi
     else
         # No existing containers: just start
-        if ! ${COMPOSE_CMD} up -d >/dev/null 2>&1; then
+        info "Starting services..."
+        if ! ${COMPOSE_CMD} up -d 2>&1 | blue; then
             error "Failed to start services"
             exit 1
         fi
