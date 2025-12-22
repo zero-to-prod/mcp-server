@@ -27,7 +27,7 @@ The server uses the MCP SDK's attribute-based discovery system:
 ```php
 $controller_paths = !empty($_ENV['MCP_CONTROLLER_PATHS'])
     ? explode(':', $_ENV['MCP_CONTROLLER_PATHS'])
-    : ['controllers'];
+    : ['src'];
 
 Server::builder()
     ->setServerInfo($_ENV['MCP_SERVER_NAME'] ?? 'MCP Server', $_ENV['APP_VERSION'] ?? '0.0.0')
@@ -37,11 +37,14 @@ Server::builder()
     ->build()
 ```
 
-- **Discovery paths**: Colon-separated list in `MCP_CONTROLLER_PATHS` environment variable (default: `controllers`)
-- **Base path**: Project root directory
+- **Discovery paths**: Colon-separated list in `MCP_CONTROLLER_PATHS` environment variable (default: `src`)
+  - Can be relative (e.g., `src`, `custom`) or absolute (e.g., `/app/controllers`)
+  - Multiple paths supported: `src:custom:/absolute/path`
+- **Base path**: Project root directory (`/app` in container)
 - **Controllers namespace**: **Optional** - Can use `Controllers\` or no namespace
 - **File session storage**: `FileSessionStore` with configurable directory
 - **Controller loading**: All PHP files in controller paths are automatically loaded with `require_once`
+- **Default location**: Controllers are stored in `src/` directory (mounted from host)
 
 ### MCP Controller Pattern
 
@@ -109,7 +112,7 @@ class ExampleController
 
 **Key Pattern Details**:
 - Controllers should use `Controllers\` namespace (or no namespace)
-- Place controller files in `/controllers` directory
+- Place controller files in `src/` directory (or custom path via `MCP_CONTROLLER_PATHS`)
 - Use `#[Schema]` attribute for parameter descriptions and validation
 - Tool return values are automatically wrapped in appropriate MCP content types
 - Throw `ToolCallException` for user-facing errors (other exceptions show generic messages)
@@ -126,20 +129,28 @@ The Docker image supports running multiple independent servers:
 
 Example multi-instance setup:
 ```bash
-# Instance 1
+# Instance 1 - Mount local src1/ directory
 docker run -d -p 8081:80 \
-  -v ~/controllers1:/app/controllers:ro \
+  -v ~/project1/src:/app/src:ro \
   -e MCP_SERVER_NAME=server1 \
   davidsmith3/mcp-server:latest
 
-# Instance 2
+# Instance 2 - Mount local src2/ directory
 docker run -d -p 8082:80 \
-  -v ~/controllers2:/app/controllers:ro \
+  -v ~/project2/src:/app/src:ro \
   -e MCP_SERVER_NAME=server2 \
+  davidsmith3/mcp-server:latest
+
+# Instance 3 - Use multiple controller paths
+docker run -d -p 8083:80 \
+  -v ~/project3/src:/app/src:ro \
+  -v ~/shared:/app/shared:ro \
+  -e MCP_SERVER_NAME=server3 \
+  -e MCP_CONTROLLER_PATHS=src:shared \
   davidsmith3/mcp-server:latest
 ```
 
-Note: `MCP_CONTROLLER_PATHS` defaults to `controllers`, so it's optional when using the default location.
+Note: `MCP_CONTROLLER_PATHS` defaults to `src`, so it's optional when using the default location.
 
 ## Common Development Commands
 
@@ -227,7 +238,7 @@ composer audit
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MCP_SERVER_NAME` | `MCP Server` | Display name in Claude Desktop |
-| `MCP_CONTROLLER_PATHS` | `controllers` | Colon-separated controller discovery paths |
+| `MCP_CONTROLLER_PATHS` | `src` | Colon-separated controller discovery paths |
 | `MCP_SESSIONS_DIR` | `/app/storage/mcp-sessions` | Session storage directory |
 | `APP_VERSION` | `0.0.0` | Application version |
 | `APP_DEBUG` | `false` | Enable debug logging (`true`/`false`) |
@@ -239,11 +250,12 @@ composer audit
 mcp-server/
 ├── app/
 │   └── Http/
-│       └── Controllers/     # Legacy MCP controllers location
+│       └── Controllers/     # Legacy location (not used)
 ├── bin/
 │   └── mcp-server          # CLI entry point
-├── controllers/            # MCP controllers (recommended location)
-│   └── ExampleController.php
+├── src/                    # MCP controllers (default location)
+│   ├── Redis.php
+│   └── Mongodb.php
 ├── public/
 │   └── index.php           # HTTP entry point
 ├── storage/
@@ -318,7 +330,7 @@ This project uses the official **`mcp/sdk`** (v0.1.0) from `modelcontextprotocol
 ### Controller Development
 
 1. **Namespace**: **Optional** - Controllers can use `Controllers\` namespace or no namespace at all
-2. **File location**: Place controllers in `/controllers` directory
+2. **File location**: Place controllers in `/src` directory (or custom path via `MCP_CONTROLLER_PATHS`)
 3. **Attribute discovery**: Use `#[McpTool]`, `#[McpResource]`, etc. for automatic registration
 4. **Parameter documentation**: Use `#[Schema]` for descriptions and validation
 5. **Error handling**: Throw specific exceptions (`ToolCallException`, `ResourceReadException`, `PromptGetException`) for user-facing errors
@@ -587,8 +599,28 @@ Use descriptive, hierarchical URIs:
 
 ### Multi-Instance Environment Pattern
 
+**Single controller directory (default):**
+```bash
+MCP_CONTROLLER_PATHS=src
+```
+
+**Multiple controller directories (colon-separated):**
+```bash
+MCP_CONTROLLER_PATHS=src:custom_controllers:shared_tools
+```
+
+**Full environment configuration:**
 ```bash
 MCP_SERVER_NAME=unique-name
 MCP_CONTROLLER_PATHS=path1:path2:path3
 MCP_SESSIONS_DIR=/custom/path
+```
+
+**Docker example with custom controller path:**
+```bash
+docker run -d -p 8081:80 \
+  -v ~/my-tools:/app/my-tools:ro \
+  -e MCP_CONTROLLER_PATHS=my-tools \
+  -e MCP_SERVER_NAME=my-server \
+  davidsmith3/mcp-server:latest
 ```

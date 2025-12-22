@@ -1,6 +1,6 @@
 # MCP Server - Technical Specification
 
-PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount controllers, expose as MCP tools.
+PHP 8.4 MCP (Model Context Protocol) server. Docker image. Mount your `src/` directory, expose as MCP tools.
 
 ## Quick Start
 
@@ -90,19 +90,23 @@ Each controller file is a self-contained plugin:
 
 **CRITICAL: Where to create controller files**
 
-Create controller files **in the root of your project directory** (same directory as `.env` and `docker-compose.yml`), NOT in a `controllers/` subdirectory.
+Create controller files **in the `src/` directory** of your project.
 
-Your project directory gets mounted as `/app/controllers` inside the Docker container.
+The `src/` directory gets mounted as `/app/src` inside the Docker container.
 
 **Example project structure:**
 
 ```
 your-project/
-.env
-docker-compose.yml
-MyController.php    <- Create controllers here (root)
-Redis.php           <- Create controllers here (root)
+├── .env
+├── docker-compose.yml
+└── src/
+    ├── MyController.php    <- Create controllers here
+    ├── Redis.php           <- Built-in controller (copied by installer)
+    └── Mongodb.php         <- Built-in controller (copied by installer)
 ```
+
+These files will be accessible at `/app/src/MyController.php`, `/app/src/Redis.php`, etc. inside the container.
 
 **File structure:**
 
@@ -175,7 +179,7 @@ image: redis:7-alpine
 command: redis-server --appendonly yes
 ```
 
-### Redis Tools (Redis.php in your project root)
+### Redis Tools (Redis.php in src/)
 
 **redis.inspect** - Get metadata + preview + TTL
 
@@ -244,7 +248,7 @@ volumes:
   - mongodb-data:/data/db
 ```
 
-### MongoDB Tools (Mongodb.php in your project root)
+### MongoDB Tools (Mongodb.php in src/)
 
 **mongodb.document.find** - Query documents in collection
 
@@ -407,8 +411,8 @@ docker logs mcp1
 **Check syntax errors:**
 
 ```shell
-# Path inside Docker container (your root files are mounted to /app/controllers)
-docker exec mcp1 php -l /app/controllers/YourController.php
+# Path inside Docker container (your src/ directory is mounted to /app/src)
+docker exec mcp1 php -l /app/src/YourController.php
 ```
 
 **Verify environment:**
@@ -421,24 +425,24 @@ docker exec mcp1 env | grep MCP
 
 Variables read by the server (public/index.php):
 
-| Variable         | Default    | Description                         | Used In         |
-|------------------|------------|-------------------------------------|-----------------|
-| MCP_SERVER_NAME  | MCP Server | Server display name                 | index.php:92    |
-| APP_VERSION      | 0.0.0      | Version string                      | index.php:92    |
-| APP_DEBUG        | false      | Enable debug logs (true/false)      | index.php:29,55 |
-| REDIS_HOST       | redis      | Redis host (container name or IP)   | Redis.php:18    |
-| REDIS_PORT       | 6379       | Redis port                          | Redis.php:19    |
-| REDIS_PASSWORD   | -          | Redis password (optional)           | Redis.php:20    |
-| MONGODB_HOST     | mongodb    | MongoDB host (container name or IP) | Mongodb.php:18  |
-| MONGODB_PORT     | 27017      | MongoDB port                        | Mongodb.php:19  |
-| MONGODB_USERNAME | -          | MongoDB username (optional)         | Mongodb.php:20  |
-| MONGODB_PASSWORD | -          | MongoDB password (optional)         | Mongodb.php:21  |
+| Variable             | Default     | Description                              | Used In         |
+|----------------------|-------------|------------------------------------------|-----------------|
+| MCP_SERVER_NAME      | MCP Server  | Server display name                      | index.php:92    |
+| APP_VERSION          | 0.0.0       | Version string                           | index.php:92    |
+| APP_DEBUG            | false       | Enable debug logs (true/false)           | index.php:29,55 |
+| MCP_CONTROLLER_PATHS | src         | Colon-separated controller paths to scan | index.php:81-83 |
+| REDIS_HOST           | redis       | Redis host (container name or IP)        | Redis.php:18    |
+| REDIS_PORT           | 6379        | Redis port                               | Redis.php:19    |
+| REDIS_PASSWORD       | -           | Redis password (optional)                | Redis.php:20    |
+| MONGODB_HOST         | mongodb     | MongoDB host (container name or IP)      | Mongodb.php:18  |
+| MONGODB_PORT         | 27017       | MongoDB port                             | Mongodb.php:19  |
+| MONGODB_USERNAME     | -           | MongoDB username (optional)              | Mongodb.php:20  |
+| MONGODB_PASSWORD     | -           | MongoDB password (optional)              | Mongodb.php:21  |
 
 Additional variables in .env.example (not used in code):
 
 | Variable             | Note                                               |
 |----------------------|----------------------------------------------------|
-| MCP_CONTROLLER_PATHS | Hardcoded to `controllers` in index.php:81         |
 | MCP_SESSIONS_DIR     | Hardcoded to `storage/mcp-sessions` in index.php:8 |
 | API_KEY              | Available for controller use, not used by core     |
 | PORT                 | Docker-specific, used in docker-compose.yml        |
@@ -1108,7 +1112,7 @@ KEY: critical behavior or constraint
 
 ## Technical Details
 
-- **Controller path:** `/app/controllers` (mount target)
+- **Controller path:** `/app/src` (default mount target)
 - **Namespace:** optional (`Controllers` or none)
 - **Auto-load:** all `.php` files in controller path
 - **Transport:** StreamableHttpTransport (HTTP)
@@ -1127,5 +1131,5 @@ On startup:
 
 Mount requirements:
 
-- `-v <local-path>:/app/controllers` - controllers (required)
+- `-v <local-path>:/app/src` - controllers (required)
 - `-v <volume>:/app/storage/mcp-sessions` - sessions (optional, for persistence)

@@ -224,6 +224,8 @@ prompt_port() {
 
 # Main installation
 main() {
+    echo "Installing server..."
+    
     # Check Docker
     if ! command_exists docker; then
         error "Docker is not installed. Visit: https://docs.docker.com/get-docker/"
@@ -306,27 +308,31 @@ main() {
 
     INSTALL_DIR="$(pwd)"
 
-    # Step 1: Initialize project
-    if [ ! -f .env.example ] && [ ! -f "*.php" ]; then
-        if ! docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" init >/dev/null 2>&1; then
-            error "Failed to initialize project"
-            exit 1
-        fi
-    fi
-
-    # Step 1.5: Ensure README.md is present
+    # Step 1: Copy README.md from image
     if [ ! -f README.md ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true' >/dev/null 2>&1
     fi
 
-    # Step 1.6: Ensure Mongodb.php controller is present
-    if [ ! -f Mongodb.php ]; then
-        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Mongodb.php /init/Mongodb.php 2>/dev/null || true' >/dev/null 2>&1
+    # Step 1.5: Copy .env.example from image
+    if [ ! -f .env.example ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/.env.example /init/.env.example 2>/dev/null || true' >/dev/null 2>&1
     fi
 
-    # Step 1.7: Ensure Redis.php controller is present
-    if [ ! -f Redis.php ]; then
-        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/controllers/Redis.php /init/Redis.php 2>/dev/null || true' >/dev/null 2>&1
+    # Step 1.6: Create src directory if it doesn't exist
+    if [ ! -d src ]; then
+        mkdir -p src
+    fi
+
+    # Step 1.7: Ensure Mongodb.php controller is present in src/
+    # Try new location first (/app/src), fall back to old location (/app/controllers) for backward compatibility
+    if [ ! -f src/Mongodb.php ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Mongodb.php /init/src/Mongodb.php 2>/dev/null || cp /app/controllers/Mongodb.php /init/src/Mongodb.php 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
+    # Step 1.8: Ensure Redis.php controller is present in src/
+    # Try new location first (/app/src), fall back to old location (/app/controllers) for backward compatibility
+    if [ ! -f src/Redis.php ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Redis.php /init/src/Redis.php 2>/dev/null || cp /app/controllers/Redis.php /init/src/Redis.php 2>/dev/null || true' >/dev/null 2>&1
     fi
 
     # Step 2: Create .env file
@@ -340,12 +346,13 @@ main() {
             sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
             sed_inplace "s/^REDIS_PORT=.*/REDIS_PORT=${REDIS_PORT}/" .env
             sed_inplace "s/^MONGODB_PORT=.*/MONGODB_PORT=${MONGODB_PORT}/" .env
+            sed_inplace "s/^MCP_CONTROLLER_PATHS=.*/MCP_CONTROLLER_PATHS=src/" .env
         else
             cat > .env <<EOF
 MCP_SERVER_NAME=${SERVER_NAME}
 APP_VERSION=0.0.0
 APP_DEBUG=false
-MCP_CONTROLLER_PATHS=controllers
+MCP_CONTROLLER_PATHS=src
 MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 PORT=${PORT}
 REDIS_PORT=${REDIS_PORT}
@@ -365,7 +372,7 @@ services:
     ports:
       - "\${PORT:-${PORT}}:80"
     volumes:
-      - .:/app/controllers
+      - ./src:/app/src
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env

@@ -5,7 +5,7 @@ services:
     ports:
       - "${PORT:-8081}:80"
     volumes:
-      - ./controllers:/app/controllers
+      - ./src:/app/src
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env
@@ -50,7 +50,7 @@ services:
     ports:
       - "8081:80"
     volumes:
-      - ./controllers:/app/controllers
+      - ./src:/app/src
       - mcp-sessions-prod:/app/storage/mcp-sessions
     env_file:
       - .env
