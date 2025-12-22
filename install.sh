@@ -224,6 +224,9 @@ prompt_port() {
 
 # Main installation
 main() {
+    echo "Installing server..."
+    echo ""
+    
     # Check Docker
     if ! command_exists docker; then
         error "Docker is not installed. Visit: https://docs.docker.com/get-docker/"
