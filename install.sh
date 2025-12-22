@@ -313,6 +313,11 @@ main() {
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/README.md /init/README.md 2>/dev/null || true' >/dev/null 2>&1
     fi
 
+    # Step 1.1: Copy CLAUDE.md from image
+    if [ ! -f CLAUDE.md ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/CLAUDE.md /init/CLAUDE.md 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
     # Step 1.5: Copy .env.example from image
     if [ ! -f .env.example ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/.env.example /init/.env.example 2>/dev/null || true' >/dev/null 2>&1
