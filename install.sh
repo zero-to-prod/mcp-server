@@ -450,8 +450,6 @@ EOF
     plain ""
     plain "Add to Claude Code:"
     printf '\033[0;32mclaude mcp add --transport http %s http://localhost:%s\033[0m\n' "${SERVER_NAME}" "${PORT}"
-    plain ""
-    plain "Instruct your agent to use README.md to build your first MCP tool!"
 }
 
 # Run main function
