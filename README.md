@@ -114,6 +114,8 @@ These files will be accessible at `/app/src/MyController.php`, `/app/src/Redis.p
 <?php
 declare(strict_types=1);
 
+// Namespaces are optional
+
 // Include ALL imports needed by THIS file
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
@@ -467,7 +469,7 @@ Reference the official PHP SDK repository for:
 ```php
 <?php
 declare(strict_types=1);
-namespace App\Http\Controllers;  // optional
+// Namespaces are optional
 
 class ControllerName {
 // methods with attributes
@@ -942,7 +944,7 @@ public function gc(int $maxlifetime): void;
 ```php
 <?php
 declare(strict_types=1);
-namespace App\Http\Controllers;
+// Namespaces are optional
 
 use Mcp\Capability\Attribute\{McpTool, McpResource, McpResourceTemplate, McpPrompt, Schema};
 use Mcp\Exception\{ToolCallException, ResourceReadException, PromptGetException};
@@ -1113,7 +1115,7 @@ KEY: critical behavior or constraint
 ## Technical Details
 
 - **Controller path:** `/app/src` (default mount target)
-- **Namespace:** optional (`Controllers` or none)
+- **Namespace:** optional (controllers work with or without namespaces)
 - **Auto-load:** all `.php` files in controller path
 - **Transport:** StreamableHttpTransport (HTTP)
 - **Session:** FileSessionStore

@@ -1,7 +1,5 @@
 <?php declare(strict_types=1);
 
-namespace App\Http\Controllers;
-
 use Exception;
 use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Exception\ToolCallException;

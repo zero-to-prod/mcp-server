@@ -25,8 +25,6 @@ Self-contained plugins in `src/`. No cross-file dependencies.
 ```php
 <?php declare(strict_types=1);
 
-namespace App\Http\Controllers;
-
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
