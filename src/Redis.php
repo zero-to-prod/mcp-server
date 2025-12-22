@@ -8,6 +8,9 @@ use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
 use Predis\Client;
 
+/**
+ * @link https://github.com/zero-to-prod/mcp-server
+ */
 final class Redis
 {
     private static ?Client $redis = null;
@@ -105,6 +108,9 @@ final class Redis
         return array_slice($data, 0, $limit);
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'redis.get',
         description: <<<TEXT
@@ -132,6 +138,9 @@ final class Redis
         return $this->getFromRefRedis($key);
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'redis.inspect',
         description: <<<TEXT
@@ -163,6 +172,9 @@ final class Redis
         ];
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'redis.exists',
         description: <<<TEXT
@@ -189,6 +201,9 @@ final class Redis
         ];
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'redis.command',
         description: <<<TEXT

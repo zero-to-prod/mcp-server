@@ -10,6 +10,9 @@ use MongoDB\Client;
 use MongoDB\Driver\Exception\ConnectionException;
 use MongoDB\Driver\Exception\RuntimeException;
 
+/**
+ * @link https://github.com/zero-to-prod/mcp-server
+ */
 final class Mongodb
 {
     private static ?Client $client = null;
@@ -50,6 +53,9 @@ final class Mongodb
         return self::$client;
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'mongodb.document.find',
         description: 'Find documents in collection. USE: retrieving, searching, filtering. Maps to: MongoDB find()',
@@ -94,6 +100,9 @@ final class Mongodb
         }
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'mongodb.document.insert',
         description: 'Insert one or more documents into a MongoDB collection. Supports single document or bulk insert operations. Maps to: MongoDB insertOne() or insertMany() operations',
@@ -153,6 +162,9 @@ final class Mongodb
         }
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'mongodb.document.update',
         description: 'Update documents in a MongoDB collection. Uses MongoDB update operators to modify documents. Maps to: MongoDB updateOne() or updateMany() operations',
@@ -204,6 +216,9 @@ final class Mongodb
         }
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'mongodb.document.delete',
         description: 'Delete documents from a MongoDB collection. Removes one or multiple documents matching a filter. WARNING: Delete operations are permanent. Maps to: MongoDB deleteOne() or deleteMany() operations',
@@ -250,6 +265,9 @@ final class Mongodb
         }
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/mcp-server
+     */
     #[McpTool(
         name: 'mongodb.data.aggregate',
         description: 'Run aggregation pipeline on a MongoDB collection. Execute data transformations using MongoDB\'s aggregation framework. Pipeline stages: $match: Filter documents, $group: Group and aggregate, $sort: Sort results, $limit: Limit results, $project: Shape output. USE: complex queries, analytics, computing aggregates. Maps to: MongoDB aggregate() operation',
