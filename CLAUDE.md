@@ -16,7 +16,7 @@ docker logs mcp-demo --tail 200                   # View logs
 docker logs mcp-demo 2>&1 | grep -i error        # Search errors
 ```
 
-**⚠️ After creating/modifying MCP tools, prompt user: "Run the /mcp command to reconnect"**
+**⚠️ After creating/modifying MCP tools, prompt user: "Refresh your MCP client by reconnecting."**
 
 ## Controller Structure
 
