@@ -433,13 +433,13 @@ EOF
     # Output MCP connection string
     plain ""
     plain "MCP Connection String:"
-    plain "\"${SERVER_NAME}\": {"
-    plain "  \"type\": \"streamable-http\","
-    plain "  \"url\": \"http://localhost:${PORT}/mcp\""
-    plain "}"
+    printf '\033[0;32m"%s": {\n' "${SERVER_NAME}"
+    printf '  "type": "streamable-http",\n'
+    printf '  "url": "http://localhost:%s/mcp"\n' "${PORT}"
+    printf '}\033[0m\n'
     plain ""
     plain "Add to Claude Code:"
-    plain "claude mcp add --transport http ${SERVER_NAME} http://localhost:${PORT}"
+    printf '\033[0;32mclaude mcp add --transport http %s http://localhost:%s\033[0m\n' "${SERVER_NAME}" "${PORT}"
     plain ""
     plain "Instruct your agent to use README.md to build your first MCP tool!"
 }
