@@ -11,9 +11,10 @@ docker compose down                               # Stop
 docker compose down && docker compose up -d       # Restart (for .env changes)
 
 # Testing
-docker exec mcp-demo php -l /app/src/File.php    # Check syntax
-docker logs mcp-demo --tail 200                   # View logs
-docker logs mcp-demo 2>&1 | grep -i error        # Search errors
+docker exec <CONTAINER> php -l /app/src/File.php    # Check syntax
+docker logs <CONTAINER> --tail 200                   # View logs
+docker logs <CONTAINER> 2>&1 | grep -i error        # Search errors
+# <CONTAINER> = Use `docker ps` to find container name (default: mcp-server, configurable via MCP_SERVER_NAME)
 ```
 
 **⚠️ After creating/modifying MCP tools, prompt user: "Refresh your MCP client by reconnecting."**
