@@ -36,7 +36,7 @@
         "ext-json": "*",
         "ext-curl": "*",
         "psr/log": "^3.0",
-        "mcp/sdk": "^0.1.0",
+        "mcp/sdk": "^0.2.2",
         "nyholm/psr7": "^1.8",
         "nyholm/psr7-server": "^1.1",
         "predis/predis": "^3.3",
