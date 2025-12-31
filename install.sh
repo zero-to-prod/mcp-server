@@ -8,6 +8,8 @@ DEFAULT_SERVER_NAME="mcp-server"
 DEFAULT_PORT="8080"
 DEFAULT_REDIS_PORT="6379"
 DEFAULT_MONGODB_PORT="27017"
+DEFAULT_MEMGRAPH_PORT="7687"
+DEFAULT_MEMGRAPH_LAB_PORT="3000"
 DEFAULT_IMAGE="davidsmith3/mcp-server:latest"
 
 # Output functions using printf for portability
@@ -307,11 +309,15 @@ main() {
         PORT=$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_PORT")
         REDIS_PORT=$(grep "^REDIS_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_REDIS_PORT")
         MONGODB_PORT=$(grep "^MONGODB_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_MONGODB_PORT")
+        MEMGRAPH_PORT=$(grep "^MEMGRAPH_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_MEMGRAPH_PORT")
+        MEMGRAPH_LAB_PORT=$(grep "^MEMGRAPH_LAB_PORT=" .env 2>/dev/null | cut -d= -f2 || echo "$DEFAULT_MEMGRAPH_LAB_PORT")
     else
         # Find available ports for new installation
         PORT=$(find_available_port "$DEFAULT_PORT")
         REDIS_PORT=$(find_available_port "$DEFAULT_REDIS_PORT")
         MONGODB_PORT=$(find_available_port "$DEFAULT_MONGODB_PORT")
+        MEMGRAPH_PORT=$(find_available_port "$DEFAULT_MEMGRAPH_PORT")
+        MEMGRAPH_LAB_PORT=$(find_available_port "$DEFAULT_MEMGRAPH_LAB_PORT")
     fi
 
     INSTALL_DIR="$(pwd)"
@@ -348,6 +354,11 @@ main() {
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Redis.php /init/src/Redis.php 2>/dev/null || cp /app/controllers/Redis.php /init/src/Redis.php 2>/dev/null || true' >/dev/null 2>&1
     fi
 
+    # Step 1.9: Ensure Memgraph.php controller is present in src/
+    if [ ! -f src/Memgraph.php ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Memgraph.php /init/src/Memgraph.php 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
     # Step 2: Create .env file
     if [ ! -f .env ]; then
         if [ -f .env.example ]; then
@@ -359,6 +370,8 @@ main() {
             sed_inplace "s/^PORT=.*/PORT=${PORT}/" .env
             sed_inplace "s/^REDIS_PORT=.*/REDIS_PORT=${REDIS_PORT}/" .env
             sed_inplace "s/^MONGODB_PORT=.*/MONGODB_PORT=${MONGODB_PORT}/" .env
+            sed_inplace "s/^MEMGRAPH_PORT=.*/MEMGRAPH_PORT=${MEMGRAPH_PORT}/" .env
+            sed_inplace "s/^MEMGRAPH_LAB_PORT=.*/MEMGRAPH_LAB_PORT=${MEMGRAPH_LAB_PORT}/" .env
             sed_inplace "s/^MCP_CONTROLLER_PATHS=.*/MCP_CONTROLLER_PATHS=src/" .env
         else
             cat > .env <<EOF
@@ -370,6 +383,8 @@ MCP_SESSIONS_DIR=/app/storage/mcp-sessions
 PORT=${PORT}
 REDIS_PORT=${REDIS_PORT}
 MONGODB_PORT=${MONGODB_PORT}
+MEMGRAPH_PORT=${MEMGRAPH_PORT}
+MEMGRAPH_LAB_PORT=${MEMGRAPH_LAB_PORT}
 DOCKER_IMAGE=${DEFAULT_IMAGE}
 EOF
         fi
@@ -386,6 +401,9 @@ services:
       - "\${PORT:-${PORT}}:80"
     volumes:
       - ./src:/app/src
+      - ./composer.json:/app/composer.json
+      - ./composer.lock:/app/composer.lock
+      - ./vendor:/app/vendor
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env
@@ -393,12 +411,13 @@ services:
     depends_on:
       - redis
       - mongodb
+      - memgraph
 
   redis:
     image: redis:7-alpine
     container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-redis
     ports:
-      - "${REDIS_PORT}:6379"
+      - "\${REDIS_PORT}:6379"
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -408,7 +427,7 @@ services:
     image: mongo:8
     container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-mongodb
     ports:
-      - "${MONGODB_PORT}:27017"
+      - "\${MONGODB_PORT}:27017"
     restart: unless-stopped
     volumes:
       - mongodb-data:/data/db
@@ -416,10 +435,23 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=\${MONGODB_USERNAME:-}
       - MONGO_INITDB_ROOT_PASSWORD=\${MONGODB_PASSWORD:-}
 
+  memgraph:
+    image: memgraph/memgraph-platform:latest
+    container_name: \${MCP_SERVER_NAME:-${SERVER_NAME}}-memgraph
+    ports:
+      - "\${MEMGRAPH_PORT:-7687}:7687"
+      - "\${MEMGRAPH_LAB_PORT:-3000}:3000"
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    restart: unless-stopped
+    environment:
+      - MEMGRAPH=--log-level=WARNING
+
 volumes:
   mcp-sessions:
   redis-data:
   mongodb-data:
+  memgraph-data:
 EOF
     fi
 

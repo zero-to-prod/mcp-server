@@ -1,6 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+declare(strict_types=1);
 
-use Exception;
 use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
@@ -35,7 +35,7 @@ final class Redis
                 self::$redis = new Client($config);
                 self::$redis->connect();
             } catch (Exception $e) {
-                throw new ToolCallException("Redis connection failed: {$host}:{$port} - " . $e->getMessage());
+                throw new ToolCallException("Redis connection failed: {$host}:{$port} - ".$e->getMessage());
             }
         }
 
@@ -57,6 +57,7 @@ final class Redis
     private function refExistsRedis(string $ref): bool
     {
         $clean_ref = str_replace('redis:', '', $ref);
+
         return $this->redis()->exists($clean_ref) > 0;
     }
 
@@ -110,12 +111,12 @@ final class Redis
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'redis.get',
+        name: 'redis_get',
         description: <<<TEXT
         Redis GET command - retrieve full data from key.
 
         WARNING: This loads full data into LLM context. Use sparingly.
-        Prefer redis.inspect for exploration.
+        Prefer redis_inspect for exploration.
 
         Use this to:
         - Final step before presenting to user
@@ -125,7 +126,7 @@ final class Redis
         Maps directly to: Redis GET command
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'redis.get',
+            title: 'redis_get',
             readOnlyHint: true
         )
     )]
@@ -140,19 +141,19 @@ final class Redis
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'redis.inspect',
+        name: 'redis_inspect',
         description: <<<TEXT
         Get metadata + preview + TTL for key (composite operation).
 
         USE: Exploration before full load, check size/structure/expiration, verify key exists
-        DO NOT USE: When you need full data (use redis.get instead)
+        DO NOT USE: When you need full data (use redis_get instead)
 
         RETURNS: Metadata (type/size/count), preview (first 3 items), TTL (seconds)
 
         Maps to: Redis GET + TTL commands
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'redis.inspect',
+            title: 'redis_inspect',
             readOnlyHint: true
         )
     )]
@@ -174,7 +175,7 @@ final class Redis
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'redis.exists',
+        name: 'redis_exists',
         description: <<<TEXT
         Check if key exists and get TTL.
 
@@ -183,7 +184,7 @@ final class Redis
         Maps to: Redis EXISTS + TTL commands
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'redis.exists'
+            title: 'redis_exists'
         )
     )]
     public function exists(
@@ -203,7 +204,7 @@ final class Redis
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'redis.command',
+        name: 'redis_command',
         description: <<<TEXT
         Execute raw Redis command and return result.
 
@@ -223,7 +224,7 @@ final class Redis
         Direct pass-through to Redis server.
         TEXT,
         annotations: new ToolAnnotations(
-            title: 'redis.command'
+            title: 'redis_command'
         )
     )]
     public function command(

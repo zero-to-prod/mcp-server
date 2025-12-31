@@ -1,11 +1,14 @@
 services:
   mcp:
-    image: ${DOCKER_IMAGE:-davidsmith3/mcp-server:latest}
+    build: .
     container_name: ${MCP_SERVER_NAME:-mcp-server}
     ports:
       - "${PORT:-8081}:80"
     volumes:
       - ./src:/app/src
+      - ./composer.json:/app/composer.json
+      - ./composer.lock:/app/composer.lock
+      - ./vendor:/app/vendor
       - mcp-sessions:/app/storage/mcp-sessions
     env_file:
       - .env
@@ -17,6 +20,7 @@ services:
     depends_on:
       - redis
       - mongodb
+      - memgraph
 
   dev:
     build:
@@ -38,6 +42,7 @@ services:
     depends_on:
       - redis
       - mongodb
+      - memgraph
     profiles:
       - dev
 
@@ -61,6 +66,7 @@ services:
     depends_on:
       - redis
       - mongodb
+      - memgraph
     profiles:
       - prod
 
@@ -94,8 +100,21 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME:-}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-}
 
+  memgraph:
+    image: memgraph/memgraph-platform:latest
+    container_name: ${MCP_SERVER_NAME:-mcp}-memgraph
+    ports:
+      - "${MEMGRAPH_PORT:-7687}:7687"
+      - "${MEMGRAPH_LAB_PORT:-3000}:3000"
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    restart: unless-stopped
+    environment:
+      - MEMGRAPH=--log-level=WARNING
+
 volumes:
   mcp-sessions:
   mcp-sessions-prod:
   redis-data:
   mongodb-data:
+  memgraph-data:

@@ -1,6 +1,7 @@
-<?php declare(strict_types=1);
+<?php
 
-use Exception;
+declare(strict_types=1);
+
 use Mcp\Capability\Attribute\{McpTool, Schema};
 use Mcp\Exception\ToolCallException;
 use Mcp\Schema\ToolAnnotations;
@@ -8,9 +9,6 @@ use MongoDB\Client;
 use MongoDB\Driver\Exception\ConnectionException;
 use MongoDB\Driver\Exception\RuntimeException;
 
-/**
- * @link https://github.com/zero-to-prod/mcp-server
- */
 final class Mongodb
 {
     private static ?Client $client = null;
@@ -27,10 +25,10 @@ final class Mongodb
                 $uri = 'mongodb://';
 
                 if ($username && $password) {
-                    $uri .= urlencode($username) . ':' . urlencode($password) . '@';
+                    $uri .= urlencode($username).':'.urlencode($password).'@';
                 }
 
-                $uri .= $host . ':' . $port;
+                $uri .= $host.':'.$port;
 
                 $options = [
                     'connectTimeoutMS' => 2000,
@@ -42,9 +40,9 @@ final class Mongodb
                 // Test connection
                 self::$client->listDatabases();
             } catch (ConnectionException $e) {
-                throw new ToolCallException("MongoDB connection failed: {$host}:{$port} - " . $e->getMessage());
+                throw new ToolCallException("MongoDB connection failed: {$host}:{$port} - ".$e->getMessage());
             } catch (Exception $e) {
-                throw new ToolCallException("MongoDB client error: " . $e->getMessage());
+                throw new ToolCallException("MongoDB client error: ".$e->getMessage());
             }
         }
 
@@ -55,10 +53,10 @@ final class Mongodb
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'mongodb.document.find',
+        name: 'mongodb_document_find',
         description: 'Find documents in collection. USE: retrieving, searching, filtering. Maps to: MongoDB find()',
         annotations: new ToolAnnotations(
-            title: 'mongodb.document.find',
+            title: 'mongodb_document_find',
             readOnlyHint: true
         )
     )]
@@ -89,12 +87,12 @@ final class Mongodb
                 'count' => count($documents),
                 'documents' => $documents
             ];
-        } catch (\JsonException $e) {
-            throw new ToolCallException("Invalid JSON in query: " . $e->getMessage());
+        } catch (JsonException $e) {
+            throw new ToolCallException("Invalid JSON in query: ".$e->getMessage());
         } catch (RuntimeException $e) {
-            throw new ToolCallException("MongoDB find failed: " . $e->getMessage());
+            throw new ToolCallException("MongoDB find failed: ".$e->getMessage());
         } catch (Exception $e) {
-            throw new ToolCallException("Find operation error: " . $e->getMessage());
+            throw new ToolCallException("Find operation error: ".$e->getMessage());
         }
     }
 
@@ -102,10 +100,10 @@ final class Mongodb
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'mongodb.document.insert',
+        name: 'mongodb_document_insert',
         description: 'Insert one or more documents into a MongoDB collection. Supports single document or bulk insert operations. Maps to: MongoDB insertOne() or insertMany() operations',
         annotations: new ToolAnnotations(
-            title: 'mongodb.document.insert',
+            title: 'mongodb_document_insert',
             readOnlyHint: false
         )
     )]
@@ -151,12 +149,12 @@ final class Mongodb
                     'inserted_id' => (string)$result->getInsertedId()
                 ];
             }
-        } catch (\JsonException $e) {
-            throw new ToolCallException("Invalid JSON in document: " . $e->getMessage());
+        } catch (JsonException $e) {
+            throw new ToolCallException("Invalid JSON in document: ".$e->getMessage());
         } catch (RuntimeException $e) {
-            throw new ToolCallException("MongoDB insert failed: " . $e->getMessage());
+            throw new ToolCallException("MongoDB insert failed: ".$e->getMessage());
         } catch (Exception $e) {
-            throw new ToolCallException("Insert operation error: " . $e->getMessage());
+            throw new ToolCallException("Insert operation error: ".$e->getMessage());
         }
     }
 
@@ -164,10 +162,10 @@ final class Mongodb
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'mongodb.document.update',
+        name: 'mongodb_document_update',
         description: 'Update documents in a MongoDB collection. Uses MongoDB update operators to modify documents. Maps to: MongoDB updateOne() or updateMany() operations',
         annotations: new ToolAnnotations(
-            title: 'mongodb.document.update',
+            title: 'mongodb_document_update',
             readOnlyHint: false
         )
     )]
@@ -205,12 +203,12 @@ final class Mongodb
                 'matched_count' => $result->getMatchedCount(),
                 'modified_count' => $result->getModifiedCount(),
             ];
-        } catch (\JsonException $e) {
-            throw new ToolCallException("Invalid JSON: " . $e->getMessage());
+        } catch (JsonException $e) {
+            throw new ToolCallException("Invalid JSON: ".$e->getMessage());
         } catch (RuntimeException $e) {
-            throw new ToolCallException("MongoDB update failed: " . $e->getMessage());
+            throw new ToolCallException("MongoDB update failed: ".$e->getMessage());
         } catch (Exception $e) {
-            throw new ToolCallException("Update operation error: " . $e->getMessage());
+            throw new ToolCallException("Update operation error: ".$e->getMessage());
         }
     }
 
@@ -218,10 +216,10 @@ final class Mongodb
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'mongodb.document.delete',
+        name: 'mongodb_document_delete',
         description: 'Delete documents from a MongoDB collection. Removes one or multiple documents matching a filter. WARNING: Delete operations are permanent. Maps to: MongoDB deleteOne() or deleteMany() operations',
         annotations: new ToolAnnotations(
-            title: 'mongodb.document.delete',
+            title: 'mongodb_document_delete',
             readOnlyHint: false
         )
     )]
@@ -254,12 +252,12 @@ final class Mongodb
                 'collection' => $collection,
                 'deleted_count' => $result->getDeletedCount()
             ];
-        } catch (\JsonException $e) {
-            throw new ToolCallException("Invalid JSON in filter: " . $e->getMessage());
+        } catch (JsonException $e) {
+            throw new ToolCallException("Invalid JSON in filter: ".$e->getMessage());
         } catch (RuntimeException $e) {
-            throw new ToolCallException("MongoDB delete failed: " . $e->getMessage());
+            throw new ToolCallException("MongoDB delete failed: ".$e->getMessage());
         } catch (Exception $e) {
-            throw new ToolCallException("Delete operation error: " . $e->getMessage());
+            throw new ToolCallException("Delete operation error: ".$e->getMessage());
         }
     }
 
@@ -267,10 +265,10 @@ final class Mongodb
      * @link https://github.com/zero-to-prod/mcp-server
      */
     #[McpTool(
-        name: 'mongodb.data.aggregate',
+        name: 'mongodb_data_aggregate',
         description: 'Run aggregation pipeline on a MongoDB collection. Execute data transformations using MongoDB\'s aggregation framework. Pipeline stages: $match: Filter documents, $group: Group and aggregate, $sort: Sort results, $limit: Limit results, $project: Shape output. USE: complex queries, analytics, computing aggregates. Maps to: MongoDB aggregate() operation',
         annotations: new ToolAnnotations(
-            title: 'mongodb.data.aggregate',
+            title: 'mongodb_data_aggregate',
             readOnlyHint: true
         )
     )]
@@ -281,22 +279,29 @@ final class Mongodb
         #[Schema(type: 'string', description: 'Collection name')]
         string $collection,
 
-        #[Schema(type: 'string', description: 'JSON-encoded aggregation pipeline array of stage objects. Example: "[{\"\$match\": {\"status\": \"active\"}}, {\"\$group\": {\"_id\": \"\$userId\"}}]"')]
-        string $pipeline
+        #[Schema(type: 'array', description: 'JSON-encoded aggregation pipeline array of stage objects. Example: [{"$match": {"status": "active"}}, {"$group": {"_id": "$userId"}}]')]
+        array $pipeline
     ): array {
         try {
-            $stages = json_decode($pipeline, true, 512, JSON_THROW_ON_ERROR);
-
-            if (!is_array($stages)) {
-                throw new ToolCallException('Pipeline must be an array of stages');
-            }
-
-            if (empty($stages)) {
+            if (empty($pipeline)) {
                 throw new ToolCallException('Pipeline cannot be empty');
             }
 
+            // Validate projection stages for common issues
+            foreach ($pipeline as $stage) {
+                if (isset($stage['$project'])) {
+                    foreach ($stage['$project'] as $field => $path) {
+                        if (is_string($path) && str_contains($path, '@')) {
+                            throw new ToolCallException(
+                                "Field path '$path' contains '@' symbol which may cause issues."
+                            );
+                        }
+                    }
+                }
+            }
+
             $coll = $this->client()->selectCollection($database, $collection);
-            $cursor = $coll->aggregate($stages);
+            $cursor = $coll->aggregate($pipeline);
             $results = $cursor->toArray();
 
             return [
@@ -305,12 +310,12 @@ final class Mongodb
                 'result_count' => count($results),
                 'results' => $results
             ];
-        } catch (\JsonException $e) {
-            throw new ToolCallException("Invalid JSON in pipeline: " . $e->getMessage());
+        } catch (JsonException $e) {
+            throw new ToolCallException("Invalid JSON in pipeline: ".$e->getMessage());
         } catch (RuntimeException $e) {
-            throw new ToolCallException("MongoDB aggregation failed: " . $e->getMessage());
+            throw new ToolCallException("MongoDB aggregation failed: ".$e->getMessage());
         } catch (Exception $e) {
-            throw new ToolCallException("Aggregation operation error: " . $e->getMessage());
+            throw new ToolCallException("Aggregation operation error: ".$e->getMessage());
         }
     }
 }

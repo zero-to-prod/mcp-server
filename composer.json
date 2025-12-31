@@ -40,7 +40,9 @@
         "nyholm/psr7": "^1.8",
         "nyholm/psr7-server": "^1.1",
         "predis/predis": "^3.3",
-        "mongodb/mongodb": "^2.1"
+        "mongodb/mongodb": "^2.1",
+        "laudis/neo4j-php-client": "^3.0",
+        "ramsey/uuid": "^4.9"
     },
     "autoload": {
         "psr-4": {

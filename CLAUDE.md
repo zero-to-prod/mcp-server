@@ -11,13 +11,12 @@ docker compose down                               # Stop
 docker compose down && docker compose up -d       # Restart (for .env changes)
 
 # Testing
-docker exec <CONTAINER> php -l /app/src/File.php    # Check syntax
-docker logs <CONTAINER> --tail 200                   # View logs
-docker logs <CONTAINER> 2>&1 | grep -i error        # Search errors
-# <CONTAINER> = Use `docker ps` to find container name (default: mcp-server, configurable via MCP_SERVER_NAME)
+docker exec personal-mcp php -l /app/src/File.php    # Check syntax
+docker logs personal-mcp --tail 200                  # View logs
+docker logs personal-mcp 2>&1 | grep -i error        # Search errors
 ```
 
-**⚠️ After creating/modifying MCP tools, prompt user: "Refresh your MCP client by reconnecting."**
+**⚠️ After creating/modifying MCP tools, prompt user: "Run the /mcp command to reconnect"**
 
 ## Controller Structure
 
@@ -33,7 +32,7 @@ use Mcp\Schema\ToolAnnotations;
 
 class Name {
     #[McpTool(
-        name: 'service.noun.action',
+        name: 'service_noun_action',
         description: 'Purpose. USE/DO NOT USE. KEY/RETURNS.',
         annotations: new ToolAnnotations(title: 'service.noun.action')
     )]
@@ -52,21 +51,25 @@ class Name {
 
 ## Critical Rules
 
-### Naming: `service.noun.action`
+### Naming: `service_noun_action`
+
 - Lowercase, dots only, singular noun
 - Multi-word: underscores within parts (`by_id`)
-- ✓ `redis.key.get` `mongodb.document.find` `api.user.search_by_id`
+- ✓ `redis_key_get` `mongodb_document_find` `api_user_search_by_id`
 - ✗ `getUser` `service_user_get` `service.users.get`
 
 ### Attributes
+
 - `annotations` ONLY in `#[McpTool()]`, NEVER in `#[Schema()]`
 - `ToolAnnotations.title` MUST match tool `name` exactly
 
 ### Descriptions
+
 - Tools: `Purpose. USE/DO NOT USE. KEY/RETURNS.`
 - Params: `Purpose. Valid values/format. Example.`
 
 ### Errors
+
 - `ToolCallException` for tools
 - Format: `type error: details` (lowercase)
 - `if (empty($val)) {throw new ToolCallException('param empty');}`
@@ -77,6 +80,7 @@ class Name {
 **Types:** `string` `number` `integer` `boolean` `array` `object` `null`
 
 **Constraints:**
+
 ```php
 minLength: 1, maxLength: 100, pattern: '/regex/', format: 'email'  // string
 minimum: 0, maximum: 100                                            // number
@@ -85,6 +89,7 @@ enum: ['opt1', 'opt2']                                              // any type
 ```
 
 **⚠️ PITFALL:** `default` NOT supported in `#[Schema()]`. Use function parameter defaults:
+
 ```php
 #[Schema(type: 'string', enum: ['a', 'b'])] string $param = 'a'  // ✓ CORRECT
 #[Schema(type: 'string', enum: ['a', 'b'], default: 'a')]        // ✗ WRONG
@@ -92,13 +97,13 @@ enum: ['opt1', 'opt2']                                              // any type
 
 ## Environment (.env)
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| MCP_SERVER_NAME | mcp-server | Server/container name |
-| MCP_CONTROLLER_PATHS | src | Controller paths (:separated) |
-| REDIS_HOST | redis | Redis host |
-| MONGODB_HOST | mongodb | MongoDB host |
-| PORT | 8081 | Host port |
+| Variable             | Default    | Purpose                       |
+|----------------------|------------|-------------------------------|
+| MCP_SERVER_NAME      | mcp-server | Server/container name         |
+| MCP_CONTROLLER_PATHS | src        | Controller paths (:separated) |
+| REDIS_HOST           | redis      | Redis host                    |
+| MONGODB_HOST         | mongodb    | MongoDB host                  |
+| PORT                 | 8081       | Host port                     |
 
 Changes require: `docker compose down && docker compose up -d`
 
