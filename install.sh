@@ -357,6 +357,12 @@ main() {
     # Step 1.9: Ensure Memgraph.php controller is present in src/
     if [ ! -f src/Memgraph.php ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Memgraph.php /init/src/Memgraph.php 2>/dev/null || true' >/dev/null 2>&1
+
+        # Patch Memgraph.php to use hardcoded internal port 7687
+        # MEMGRAPH_PORT env var is only for host port mapping, not internal connections
+        if [ -f src/Memgraph.php ]; then
+            sed_inplace 's/$port = (int)(getenv('\''MEMGRAPH_PORT'\'') ?: 7687);/$port = 7687; \/\/ Internal Docker network always uses 7687/' src/Memgraph.php
+        fi
     fi
 
     # Step 1.10: Copy composer.json if it doesn't exist

@@ -53,12 +53,10 @@ final class Memgraph
         string $query,
 
         #[Schema(type: 'object', description: 'Query parameters as JSON object. Example: {"name": "test", "value": 123}')]
-        object $parameters = new stdClass()
+        array $parameters = []
     ): array {
         try {
-            $params = json_decode(json_encode($parameters), true) ?? [];
-
-            $result = $this->client()->run($query, $params);
+            $result = $this->client()->run($query, $parameters);
             $records = [];
 
             foreach ($result as $record) {
@@ -91,7 +89,7 @@ final class Memgraph
         string $query,
 
         #[Schema(type: 'object', description: 'Query parameters as JSON object. Example: {"name": "test"}')]
-        object $parameters = new stdClass()
+        array $parameters = []
     ): array {
         return $this->run($query, $parameters);
     }
@@ -112,23 +110,21 @@ final class Memgraph
         string $label,
 
         #[Schema(type: 'object', description: 'Node properties as JSON object. Example: {"name": "api", "status": "active"}')]
-        object $properties
+        array $properties
     ): array {
+        if (empty($properties)) {
+            throw new ToolCallException('properties cannot be empty');
+        }
+
         try {
-            $props = json_decode(json_encode($properties), true);
-
-            if (empty($props)) {
-                throw new ToolCallException('properties cannot be empty');
-            }
-
-            $query = "CREATE (n:{$label} \$props) RETURN n";
-
-            $result = $this->client()->run($query, ['props' => $props]);
-            $node = $result->first()->get('n');
+            $result = $this->run(
+                "CREATE (n:{$label}) SET n = \$props RETURN n",
+                ['props' => $properties]
+            );
 
             return [
                 'label' => $label,
-                'properties' => $node->getProperties()
+                'properties' => $result['records'][0]['n']['properties'] ?? $properties
             ];
         } catch (Exception $e) {
             throw new ToolCallException("Node creation failed: {$e->getMessage()}");
@@ -157,25 +153,26 @@ final class Memgraph
         string $type,
 
         #[Schema(type: 'object', description: 'Relationship properties as JSON object. Optional.')]
-        object $properties = new stdClass()
+        array $properties = []
     ): array {
         try {
-            $props = json_decode(json_encode($properties), true) ?? [];
-
-            if (empty($props)) {
+            if (empty($properties)) {
                 $query = "MATCH (a), (b) WHERE {$from} AND {$to} CREATE (a)-[r:{$type}]->(b) RETURN r";
                 $params = [];
             } else {
-                $query = "MATCH (a), (b) WHERE {$from} AND {$to} CREATE (a)-[r:{$type} \$props]->(b) RETURN r";
-                $params = ['props' => $props];
+                $query = "MATCH (a), (b) WHERE {$from} AND {$to} CREATE (a)-[r:{$type}]->(b) SET r = \$props RETURN r";
+                $params = ['props' => $properties];
             }
 
-            $result = $this->client()->run($query, $params);
-            $rel = $result->first()->get('r');
+            $result = $this->run($query, $params);
+
+            if ($result['count'] === 0) {
+                throw new ToolCallException('no matching nodes found for relationship');
+            }
 
             return [
                 'type' => $type,
-                'properties' => $rel->getProperties()
+                'properties' => $result['records'][0]['r']['properties'] ?? $properties
             ];
         } catch (Exception $e) {
             throw new ToolCallException("Relationship creation failed: {$e->getMessage()}");
