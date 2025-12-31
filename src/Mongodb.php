@@ -9,6 +9,9 @@ use MongoDB\Client;
 use MongoDB\Driver\Exception\ConnectionException;
 use MongoDB\Driver\Exception\RuntimeException;
 
+/**
+ * @link https://github.com/zero-to-prod/mcp-server
+ */
 final class Mongodb
 {
     private static ?Client $client = null;
