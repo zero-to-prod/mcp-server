@@ -392,6 +392,14 @@ main() {
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp -r /app/vendor /init/vendor 2>/dev/null || true' >/dev/null 2>&1
     fi
 
+    # Step 1.13: Create .gitignore if it doesn't exist
+    if [ ! -f .gitignore ]; then
+        cat > .gitignore <<EOF
+.env
+vendor/
+EOF
+    fi
+
     # Step 2: Create .env file
     if [ ! -f .env ]; then
         if [ -f .env.example ]; then
