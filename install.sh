@@ -346,12 +346,24 @@ main() {
     # Try new location first (/app/src), fall back to old location (/app/controllers) for backward compatibility
     if [ ! -f src/Mongodb.php ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Mongodb.php /init/src/Mongodb.php 2>/dev/null || cp /app/controllers/Mongodb.php /init/src/Mongodb.php 2>/dev/null || true' >/dev/null 2>&1
+
+        # Patch Mongodb.php to use hardcoded internal port 27017
+        # MONGODB_PORT env var is only for host port mapping, not internal connections
+        if [ -f src/Mongodb.php ]; then
+            sed_inplace 's/$port = (int)(getenv('\''MONGODB_PORT'\'') ?: 27017);/$port = 27017; \/\/ Internal Docker network always uses 27017/' src/Mongodb.php
+        fi
     fi
 
     # Step 1.8: Ensure Redis.php controller is present in src/
     # Try new location first (/app/src), fall back to old location (/app/controllers) for backward compatibility
     if [ ! -f src/Redis.php ]; then
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Redis.php /init/src/Redis.php 2>/dev/null || cp /app/controllers/Redis.php /init/src/Redis.php 2>/dev/null || true' >/dev/null 2>&1
+
+        # Patch Redis.php to use hardcoded internal port 6379
+        # REDIS_PORT env var is only for host port mapping, not internal connections
+        if [ -f src/Redis.php ]; then
+            sed_inplace 's/$port = (int)(getenv('\''REDIS_PORT'\'') ?: 6379);/$port = 6379; \/\/ Internal Docker network always uses 6379/' src/Redis.php
+        fi
     fi
 
     # Step 1.9: Ensure Memgraph.php controller is present in src/
@@ -502,7 +514,7 @@ EOF
     printf '}\033[0m\n'
     plain ""
     plain "Add to Claude Code:"
-    printf '\033[0;32mclaude mcp add --transport http %s http://localhost:%s\033[0m\n' "${SERVER_NAME}" "${PORT}"
+    printf '\033[0;32mclaude mcp add --transport http %s http://localhost:%s -s user\033[0m\n' "${SERVER_NAME}" "${PORT}"
 }
 
 # Run main function
