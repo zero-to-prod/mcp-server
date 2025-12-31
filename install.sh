@@ -359,6 +359,21 @@ main() {
         docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/src/Memgraph.php /init/src/Memgraph.php 2>/dev/null || true' >/dev/null 2>&1
     fi
 
+    # Step 1.10: Copy composer.json if it doesn't exist
+    if [ ! -f composer.json ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/composer.json /init/composer.json 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
+    # Step 1.11: Copy composer.lock if it doesn't exist
+    if [ ! -f composer.lock ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp /app/composer.lock /init/composer.lock 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
+    # Step 1.12: Copy vendor directory if it doesn't exist
+    if [ ! -d vendor ]; then
+        docker run --rm -v "$(pwd):/init" "${DEFAULT_IMAGE}" sh -c 'cp -r /app/vendor /init/vendor 2>/dev/null || true' >/dev/null 2>&1
+    fi
+
     # Step 2: Create .env file
     if [ ! -f .env ]; then
         if [ -f .env.example ]; then
