@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use Mcp\Capability\Attribute\{McpTool, Schema};
@@ -17,7 +18,7 @@ final class Redis
     {
         if (self::$redis === null) {
             $host = getenv('REDIS_HOST') ?: 'localhost';
-            $port = (int)(getenv('REDIS_PORT') ?: 6379);
+            $port = 6379; // Internal Docker network port
             $password = getenv('REDIS_PASSWORD') ?: null;
 
             try {
@@ -51,7 +52,13 @@ final class Redis
             throw new ToolCallException("Reference not found or expired: {$ref}");
         }
 
-        return json_decode($data, true);
+        $decoded = json_decode($data, true);
+
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return $decoded;
+        }
+
+        return $data;
     }
 
     private function refExistsRedis(string $ref): bool

@@ -17,7 +17,7 @@ final class Memgraph
     {
         if (self::$client === null) {
             $host = getenv('MEMGRAPH_HOST') ?: 'localhost';
-            $port = (int)(getenv('MEMGRAPH_PORT') ?: 7687);
+            $port = 7687; // Internal Docker network always uses 7687
 
             $uri = "bolt://{$host}:{$port}";
 
@@ -143,10 +143,10 @@ final class Memgraph
         )
     )]
     public function createRelationship(
-        #[Schema(type: 'string', description: 'Source node match condition. Example: "a.name = \'web\'" or "a:Service {name: \'api\'}"')]
+        #[Schema(type: 'string', description: 'Source node match condition. Example: "a.name = \'web\'" or "a.name = \'api\' AND a:Service"')]
         string $from,
 
-        #[Schema(type: 'string', description: 'Target node match condition. Example: "b.name = \'database\'" or "b:Service {name: \'db\'}"')]
+        #[Schema(type: 'string', description: 'Target node match condition. Example: "b.name = \'database\'" or "b.name = \'db\' AND b:Service"')]
         string $to,
 
         #[Schema(type: 'string', description: 'Relationship type. Example: "DEPENDS_ON", "CAUSED_BY"')]
